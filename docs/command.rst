@@ -484,6 +484,10 @@ View previous messages ('^p')
 Take notes (``:``)
   This command allows you to take notes, which will then appear in your
   message list and your character history (prefixed with "Note:").
+  Two fancy note types are supported: notes beginning with "/say" will be
+  written as 'Frodo says: "____"', and notes beginning with "/me" will
+  be written as 'Frodo ____'.
+
 
 Game Status Commands
 ====================
