@@ -483,10 +483,13 @@ View previous messages ('^p')
 
 Take notes (``:``)
   This command allows you to take notes, which will then appear in your
-  message list and your character history (prefixed with "Note:").
-  Two fancy note types are supported: notes beginning with "/say" will be
-  written as 'Frodo says: "____"', and notes beginning with "/me" will
-  be written as 'Frodo ____'.
+  message list and your character history.  When your note starts with 
+  '/say ' or '/me', the note will be modified to include your character's
+  full name. If your character's name is 'Frodo', then '/say Go away Farmer
+  Maggot' becomes '-- Frodo says: "Go away Farmer Maggot"', and '/me casts
+  teleport other on Farmer Maggot' becomes '-- Frodo casts teleport other
+  on Farmer Maggot'.  If neither "/say " nor "/me" are used, then your note
+  will be prefixed with "-- Note: ".
 
 
 Game Status Commands
