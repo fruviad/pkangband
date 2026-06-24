@@ -40,7 +40,7 @@ void history_display(void)
 	struct history_info *history_list_local = NULL;
 	size_t max_item = history_get_list(player, &history_list_local);
 	int row, wid, hgt, page_size;
-	char buf[120];
+	char buf[121];
 	static size_t first_item = 0;
 	size_t i;
 	bool active = true;
