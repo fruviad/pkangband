@@ -1734,7 +1734,7 @@ int rd_history(void)
 		const struct artifact *art = NULL;
 		int aidx = 0;
 		char name[80];
-		char text[80];
+		char text[134];
 
 		for (j = 0; j < hist_size; j++)		
 			rd_byte(&type[j]);

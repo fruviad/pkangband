@@ -50,7 +50,7 @@ struct history_info {
 	int16_t clev;			/* Character level when this item was recorded */
 	uint8_t a_idx;			/* Artifact this item relates to */
 	int32_t turn;			/* Turn this item was recorded on */
-	char event[80];			/* The text of the item */
+	char event[134];		/* The text of the item */
 };
 
 void history_clear(struct player *p);
