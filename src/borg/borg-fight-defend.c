@@ -41,6 +41,7 @@
 #include "borg-light.h"
 #include "borg-magic.h"
 #include "borg-projection.h"
+#include "borg-think-dungeon-util.h"
 #include "borg-trait.h"
 #include "borg.h"
 
@@ -199,7 +200,7 @@ static int borg_defend_aux_bless(int p1)
             continue;
 
         /* Require current knowledge */
-        if (kill->when < borg_t - 5)
+        if (borg_timer(kill->when) > 5)
             continue;
 
         /* Check the distance XXX XXX XXX */
@@ -211,8 +212,8 @@ static int borg_defend_aux_bless(int p1)
     }
 
     /* if we are in some danger but not much, go for a quick bless */
-    if ((p1 > avoidance / 12 || borg.trait[BI_CLEVEL] <= 15) && p1 > 0
-        && borg_near_kill && p1 < avoidance / 2) {
+    if ((p1 > borg.avoidance / 12 || borg.trait[BI_CLEVEL] <= 15) && p1 > 0
+        && borg_near_kill && p1 < borg.avoidance / 2) {
         /* Simulation */
         /* bless is a low priority */
         if (borg_simulate)
@@ -258,15 +259,15 @@ static int borg_defend_aux_speed(int p1)
         return 0;
 
     /* if very scary, do not allow for much chance of fail */
-    if (p1 > avoidance)
+    if (p1 > borg.avoidance)
         fail_allowed -= 19;
     else
         /* a little scary */
-        if (p1 > (avoidance * 2) / 3)
+        if (p1 > (borg.avoidance * 2) / 3)
             fail_allowed -= 10;
         else
             /* not very scary, allow lots of fail */
-            if (p1 < avoidance / 3)
+            if (p1 < borg.avoidance / 3)
                 fail_allowed += 10;
 
     /* only cast defense spells if fail rate is not too high */
@@ -302,7 +303,7 @@ static int borg_defend_aux_speed(int p1)
     borg.temp.fast = false;
 
     /* if scaryguy around cast it. */
-    if (scaryguy_on_level) {
+    if (borg.mon.scary) {
         /* Further reduce danger to encourage speed use against scary or
          * unique monsters.
          */
@@ -310,55 +311,55 @@ static int borg_defend_aux_speed(int p1)
     }
 
     /* if we are fighting a unique cast it. */
-    if (good_speed && borg_fighting_unique) {
+    if (good_speed && borg.near.unique) {
         /* Further reduce danger to encourage speed use against scary or
          * unique monsters.
          */
         p2 = p2 * 7 / 10;
     }
     /* if we are fighting a unique and a summoner cast it. */
-    if (borg_fighting_summoner && borg_fighting_unique) {
+    if (borg.near.summoner && borg.near.unique) {
         /* Further reduce danger to encourage speed use against scary or
          * unique monsters.
          */
         p2 = p2 * 7 / 10;
     }
     /* if the unique is Sauron cast it */
-    if (borg.trait[BI_CDEPTH] == 99 && borg_fighting_unique >= 10) {
+    if (borg.trait[BI_CDEPTH] == 99 && borg.near.unique >= 10) {
         p2 = p2 * 6 / 10;
     }
 
     /* if the unique is a rather nasty one. */
-    if (borg_fighting_unique
-        && (streq(r_info[unique_on_level].name, "Bullroarer the Hobbit")
-            || streq(r_info[unique_on_level].name, "Mughash the Kobold Lord")
+    if (borg.near.unique
+        && (streq(r_info[borg.mon.unique].name, "Bullroarer the Hobbit")
+            || streq(r_info[borg.mon.unique].name, "Mughash the Kobold Lord")
             || streq(
-                r_info[unique_on_level].name, "Wormtongue, Agent of Saruman")
-            || streq(r_info[unique_on_level].name, "Lagduf, the Snaga")
-            || streq(r_info[unique_on_level].name, "Brodda, the Easterling")
-            || streq(r_info[unique_on_level].name, "Orfax, Son of Boldor"))) {
+                r_info[borg.mon.unique].name, "Wormtongue, Agent of Saruman")
+            || streq(r_info[borg.mon.unique].name, "Lagduf, the Snaga")
+            || streq(r_info[borg.mon.unique].name, "Brodda, the Easterling")
+            || streq(r_info[borg.mon.unique].name, "Orfax, Son of Boldor"))) {
         p2 = p2 * 6 / 10;
     }
 
     /* if the unique is Morgoth cast it */
-    if (borg.trait[BI_CDEPTH] == 100 && borg_fighting_unique >= 10) {
+    if (borg.trait[BI_CDEPTH] == 100 && borg.near.unique >= 10) {
         p2 = p2 * 5 / 10;
     }
 
     /* Attempt to conserve Speed at end of game */
-    if (borg.trait[BI_CDEPTH] >= 97 && !borg_fighting_unique && !good_speed)
+    if (borg.trait[BI_CDEPTH] >= 97 && !borg.near.unique && !good_speed)
         p2 = 9999;
 
     /* if this is an improvement and we may not avoid monster now and */
     /* we may have before */
     if (((p1 > p2)
-            && p2 <= (borg_fighting_unique ? ((avoidance * 2) / 3)
-                                           : (avoidance / 2))
-            && (p1 > (avoidance / 5)) && good_speed)
+            && p2 <= (borg.near.unique ? ((borg.avoidance * 2) / 3)
+                                           : (borg.avoidance / 2))
+            && (p1 > (borg.avoidance / 5)) && good_speed)
         || ((p1 > p2)
-            && p2 <= (borg_fighting_unique ? ((avoidance * 2) / 3)
-                                           : (avoidance / 3))
-            && (p1 > (avoidance / 7)))) {
+            && p2 <= (borg.near.unique ? ((borg.avoidance * 2) / 3)
+                                           : (borg.avoidance / 3))
+            && (p1 > (borg.avoidance / 7)))) {
 
         /* Simulation */
         if (borg_simulate)
@@ -403,15 +404,15 @@ static int borg_defend_aux_grim_purpose(int p1)
         return 0;
 
     /* if very scary, do not allow for much chance of fail */
-    if (p1 > avoidance)
+    if (p1 > borg.avoidance)
         fail_allowed -= 19;
     else
         /* a little scary */
-        if (p1 > (avoidance * 2) / 3)
+        if (p1 > (borg.avoidance * 2) / 3)
             fail_allowed -= 10;
         else
             /* not very scary, allow lots of fail */
-            if (p1 < avoidance / 3)
+            if (p1 < borg.avoidance / 3)
                 fail_allowed += 10;
 
     if (!borg_spell_okay_fail(GRIM_PURPOSE, fail_allowed))
@@ -431,9 +432,9 @@ static int borg_defend_aux_grim_purpose(int p1)
     /* if this is an improvement and we may not avoid monster now and */
     /* we may have before */
     if (p1 > p2
-        && p2 <= (borg_fighting_unique ? ((avoidance * 2) / 3)
-                                       : (avoidance / 2))
-        && p1 > (avoidance / 7)) {
+        && p2 <= (borg.near.unique ? ((borg.avoidance * 2) / 3)
+                                       : (borg.avoidance / 2))
+        && p1 > (borg.avoidance / 7)) {
 
         /* Simulation */
         if (borg_simulate)
@@ -500,8 +501,8 @@ static int borg_defend_aux_resist_fecap(int p1)
      * If the borg is fighting a particular unique enhance the
      * benefit of the spell.
      */
-    if (borg_fighting_unique
-        && (streq(r_info[unique_on_level].name, "The Tarrasque")))
+    if (borg.near.unique
+        && (streq(r_info[borg.mon.unique].name, "The Tarrasque")))
         p2 = p2 * 8 / 10;
 
     /*
@@ -514,9 +515,9 @@ static int borg_defend_aux_resist_fecap(int p1)
     /* if this is an improvement and we may not avoid monster now and */
     /* we may have before */
     if (p1 > p2
-        && p2 <= (borg_fighting_unique ? ((avoidance * 2) / 3)
-                                       : (avoidance / 2))
-        && p1 > (avoidance / 7)) {
+        && p2 <= (borg.near.unique ? ((borg.avoidance * 2) / 3)
+                                       : (borg.avoidance / 2))
+        && p1 > (borg.avoidance / 7)) {
 
         /* Simulation */
         if (borg_simulate)
@@ -558,15 +559,15 @@ static int borg_defend_aux_resist_f(int p1)
         return 0;
 
     /* if very scary, do not allow for much chance of fail */
-    if (p1 > avoidance)
+    if (p1 > borg.avoidance)
         fail_allowed -= 19;
     else
         /* a little scary */
-        if (p1 > (avoidance * 2) / 3)
+        if (p1 > (borg.avoidance * 2) / 3)
             fail_allowed -= 10;
         else
             /* not very scary, allow lots of fail */
-            if (p1 < avoidance / 3)
+            if (p1 < borg.avoidance / 3)
                 fail_allowed += 10;
 
     if (!borg_spell_okay_fail(RESISTANCE, fail_allowed)
@@ -591,16 +592,16 @@ static int borg_defend_aux_resist_f(int p1)
      * If the borg is fighting a particular unique enhance the
      * benefit of the spell.
      */
-    if (borg_fighting_unique
-        && (streq(r_info[unique_on_level].name, "The Tarrasque")))
+    if (borg.near.unique
+        && (streq(r_info[borg.mon.unique].name, "The Tarrasque")))
         p2 = p2 * 8 / 10;
 
     /* if this is an improvement and we may not avoid monster now and */
     /* we may have before */
     if (p1 > p2
-        && p2 <= (borg_fighting_unique ? ((avoidance * 2) / 3)
-                                       : (avoidance / 2))
-        && p1 > (avoidance / 7)) {
+        && p2 <= (borg.near.unique ? ((borg.avoidance * 2) / 3)
+                                       : (borg.avoidance / 2))
+        && p1 > (borg.avoidance / 7)) {
         /* Simulation */
         if (borg_simulate)
             return (p1 - p2);
@@ -647,15 +648,15 @@ static int borg_defend_aux_resist_c(int p1)
         return 0;
 
     /* if very scary, do not allow for much chance of fail */
-    if (p1 > avoidance)
+    if (p1 > borg.avoidance)
         fail_allowed -= 19;
     else
         /* a little scary */
-        if (p1 > (avoidance * 2) / 3)
+        if (p1 > (borg.avoidance * 2) / 3)
             fail_allowed -= 10;
         else
             /* not very scary, allow lots of fail */
-            if (p1 < avoidance / 3)
+            if (p1 < borg.avoidance / 3)
                 fail_allowed += 10;
 
     if (!borg_spell_okay_fail(RESISTANCE, fail_allowed)
@@ -681,16 +682,16 @@ static int borg_defend_aux_resist_c(int p1)
      * If the borg is fighting a particular unique enhance the
      * benefit of the spell.
      */
-    if (borg_fighting_unique
-        && (streq(r_info[unique_on_level].name, "The Tarrasque")))
+    if (borg.near.unique
+        && (streq(r_info[borg.mon.unique].name, "The Tarrasque")))
         p2 = p2 * 8 / 10;
 
     /* if this is an improvement and we may not avoid monster now and */
     /* we may have before */
     if (p1 > p2
-        && p2 <= (borg_fighting_unique ? ((avoidance * 2) / 3)
-                                       : (avoidance / 2))
-        && p1 > (avoidance / 7)) {
+        && p2 <= (borg.near.unique ? ((borg.avoidance * 2) / 3)
+                                       : (borg.avoidance / 2))
+        && p1 > (borg.avoidance / 7)) {
         /* Simulation */
         if (borg_simulate)
             return (p1 - p2);
@@ -738,15 +739,15 @@ static int borg_defend_aux_resist_a(int p1)
         return 0;
 
     /* if very scary, do not allow for much chance of fail */
-    if (p1 > avoidance)
+    if (p1 > borg.avoidance)
         fail_allowed -= 19;
     else
         /* a little scary */
-        if (p1 > (avoidance * 2) / 3)
+        if (p1 > (borg.avoidance * 2) / 3)
             fail_allowed -= 10;
         else
             /* not very scary, allow lots of fail */
-            if (p1 < avoidance / 3)
+            if (p1 < borg.avoidance / 3)
                 fail_allowed += 10;
 
     if (!borg_spell_okay_fail(RESISTANCE, fail_allowed)
@@ -769,9 +770,9 @@ static int borg_defend_aux_resist_a(int p1)
     /* if this is an improvement and we may not avoid monster now and */
     /* we may have before */
     if (p1 > p2
-        && p2 <= (borg_fighting_unique ? ((avoidance * 2) / 3)
-                                       : (avoidance / 2))
-        && p1 > (avoidance / 7)) {
+        && p2 <= (borg.near.unique ? ((borg.avoidance * 2) / 3)
+                                       : (borg.avoidance / 2))
+        && p1 > (borg.avoidance / 7)) {
         /* Simulation */
         if (borg_simulate)
             return (p1 - p2);
@@ -821,15 +822,15 @@ static int borg_defend_aux_resist_e(int p1)
         return 0;
 
     /* if very scary, do not allow for much chance of fail */
-    if (p1 > avoidance)
+    if (p1 > borg.avoidance)
         fail_allowed -= 19;
     else
         /* a little scary */
-        if (p1 > (avoidance * 2) / 3)
+        if (p1 > (borg.avoidance * 2) / 3)
             fail_allowed -= 10;
         else
             /* not very scary, allow lots of fail */
-            if (p1 < avoidance / 3)
+            if (p1 < borg.avoidance / 3)
                 fail_allowed += 10;
 
     if (!borg_spell_okay_fail(RESISTANCE, fail_allowed)
@@ -853,9 +854,9 @@ static int borg_defend_aux_resist_e(int p1)
     /* if this is an improvement and we may not avoid monster now and */
     /* we may have before */
     if (p1 > p2
-        && p2 <= (borg_fighting_unique ? ((avoidance * 2) / 3)
-                                       : (avoidance / 2))
-        && p1 > (avoidance / 7)) {
+        && p2 <= (borg.near.unique ? ((borg.avoidance * 2) / 3)
+                                       : (borg.avoidance / 2))
+        && p1 > (borg.avoidance / 7)) {
         /* Simulation */
         if (borg_simulate)
             return (p1 - p2);
@@ -905,15 +906,15 @@ static int borg_defend_aux_resist_p(int p1)
         return 0;
 
     /* if very scary, do not allow for much chance of fail */
-    if (p1 > avoidance)
+    if (p1 > borg.avoidance)
         fail_allowed -= 19;
     else
         /* a little scary */
-        if (p1 > (avoidance * 2) / 3)
+        if (p1 > (borg.avoidance * 2) / 3)
             fail_allowed -= 10;
         else
             /* not very scary, allow lots of fail */
-            if (p1 < avoidance / 3)
+            if (p1 < borg.avoidance / 3)
                 fail_allowed += 10;
 
     if (!borg_spell_okay_fail(RESIST_POISON, fail_allowed)
@@ -936,9 +937,9 @@ static int borg_defend_aux_resist_p(int p1)
     /* if this is an improvement and we may not avoid monster now and */
     /* we may have before */
     if (p1 > p2
-        && p2 <= (borg_fighting_unique ? ((avoidance * 2) / 3)
-                                       : (avoidance / 2))
-        && p1 > (avoidance / 7)) {
+        && p2 <= (borg.near.unique ? ((borg.avoidance * 2) / 3)
+                                       : (borg.avoidance / 2))
+        && p1 > (borg.avoidance / 7)) {
         /* Simulation */
         if (borg_simulate)
             return (p1 - p2);
@@ -981,15 +982,15 @@ static int borg_defend_aux_prot_evil(int p1)
         return 0;
 
     /* if very scary, do not allow for much chance of fail */
-    if (p1 > avoidance)
+    if (p1 > borg.avoidance)
         fail_allowed -= 19;
     else
         /* a little scary */
-        if (p1 > (avoidance * 2) / 3)
+        if (p1 > (borg.avoidance * 2) / 3)
             fail_allowed -= 5;
         else
             /* not very scary, allow lots of fail */
-            if (p1 < avoidance / 3)
+            if (p1 < borg.avoidance / 3)
                 fail_allowed += 10;
 
     if (borg_spell_okay_fail(PROTECTION_FROM_EVIL, fail_allowed))
@@ -1024,9 +1025,9 @@ static int borg_defend_aux_prot_evil(int p1)
     /* we may have before */
 
     if ((p1 > p2
-            && p2 <= (borg_fighting_unique ? ((avoidance * 2) / 3)
-                                           : (avoidance / 2))
-            && p1 > (avoidance / 7))
+            && p2 <= (borg.near.unique ? ((borg.avoidance * 2) / 3)
+                                           : (borg.avoidance / 2))
+            && p1 > (borg.avoidance / 7))
         || (borg_cfg[BORG_MONEY_SCUM_AMOUNT] >= 1
             && borg.trait[BI_CDEPTH] == 0)) {
         /* Simulation */
@@ -1075,15 +1076,15 @@ static int borg_defend_aux_shield(int p1)
     borg.temp.shield = false;
 
     /* slightly enhance the value if fighting a unique */
-    if (borg_fighting_unique)
+    if (borg.near.unique)
         p2 = (p2 * 7 / 10);
 
     /* if this is an improvement and we may not avoid monster now and */
     /* we may have before */
     if (p1 > p2
-        && p2 <= (borg_fighting_unique ? ((avoidance * 2) / 3)
-                                       : (avoidance / 2))
-        && p1 > (avoidance / 7)) {
+        && p2 <= (borg.near.unique ? ((borg.avoidance * 2) / 3)
+                                       : (borg.avoidance / 2))
+        && p1 > (borg.avoidance / 7)) {
         /* Simulation */
         if (borg_simulate)
             return (p1 - p2);
@@ -1124,32 +1125,32 @@ static int borg_defend_aux_tele_away(int p1)
     /*
      * Only tport monster away if scared or getting low on mana
      */
-    if (borg_fighting_unique) {
-        if (p1 < avoidance * 7 / 10 && borg.trait[BI_CURSP] > 30
+    if (borg.near.unique) {
+        if (p1 < borg.avoidance * 7 / 10 && borg.trait[BI_CURSP] > 30
             && borg_simulate)
             return 0;
     } else {
-        if (p1 < avoidance * 5 / 10 && borg.trait[BI_CURSP] > 30
+        if (p1 < borg.avoidance * 5 / 10 && borg.trait[BI_CURSP] > 30
             && borg_simulate)
             return 0;
     }
 
     /* No real Danger to speak of */
-    if (p1 < avoidance * 4 / 10 && borg_simulate)
+    if (p1 < borg.avoidance * 4 / 10 && borg_simulate)
         return 0;
 
     spell_ok = false;
 
     /* if very scary, do not allow for much chance of fail */
-    if (p1 > avoidance * 3)
+    if (p1 > borg.avoidance * 3)
         fail_allowed -= 10;
     else
         /* scary */
-        if (p1 > avoidance * 2)
+        if (p1 > borg.avoidance * 2)
             fail_allowed -= 5;
         else
             /* a little scary */
-            if (p1 > (avoidance * 5) / 2)
+            if (p1 > (borg.avoidance * 5) / 2)
                 fail_allowed += 5;
 
     /* do I have the ability? */
@@ -1199,7 +1200,7 @@ static int borg_defend_aux_tele_away(int p1)
             continue;
 
         /* Require current knowledge */
-        if (kill->when < borg_t - 2)
+        if (borg_timer(kill->when) > 2)
             continue;
 
         /* Get grid */
@@ -1233,7 +1234,7 @@ static int borg_defend_aux_tele_away(int p1)
      * Damage will be the danger to my grid which the monster creates.
      * We are targeting the single most dangerous monster.
      * p1 will be the original danger. p2 is how much p1 is reduced by
-     * the teleported monsters. ie:  if we are fighting only a single monster 
+     * the teleported monsters. ie:  if we are fighting only a single monster
      * is generating 500 danger and we target him, then p2 _should_
      * end up 500, since p1 - his danger is 500-0. If we are fighting two guys
      * each creating 500 danger, then p2 will be 500, since 1000-500 = 500.
@@ -1248,7 +1249,7 @@ static int borg_defend_aux_tele_away(int p1)
         borg_temp_n     = 0;
         borg_tp_other_n = 0;
 
-        if (p2 && p2 > avoidance / 2) {
+        if (p2 && p2 > borg.avoidance / 2) {
             /* Simulation */
             return p2;
         } else
@@ -1312,8 +1313,8 @@ static int borg_defend_aux_hero(int p1)
     /* "some danger" defined as "10% of x and not more than 50% of x */
     /* (not more than 70% when fighting a unique) */
     /* where x is the danger we are avoiding, usually current hp */
-    if (p1 > avoidance / 10 && 
-        p1 < (avoidance * (borg_fighting_unique ? 7 : 5)) / 10) {
+    if (p1 > borg.avoidance / 10 &&
+        p1 < (borg.avoidance * (borg.near.unique ? 7 : 5)) / 10) {
         /* Simulation */
         /* hero is a low priority */
         if (borg_simulate)
@@ -1360,8 +1361,8 @@ static int borg_defend_aux_regen(int p1)
     /* "some danger" defined as "10% of x and not more than 50% of x */
     /* (not more than 70% when fighting a unique) */
     /* where x is the danger we are avoiding, usually current hp */
-    if (p1 > avoidance / 10 &&
-        p1 < (avoidance * (borg_fighting_unique ? 7 : 5)) / 10) {
+    if (p1 > borg.avoidance / 10 &&
+        p1 < (borg.avoidance * (borg.near.unique ? 7 : 5)) / 10) {
         /* Simulation */
         /* regen is a low priority */
         if (borg_simulate)
@@ -1405,8 +1406,8 @@ static int borg_defend_aux_berserk(int p1)
     /* "some danger" defined as "10% of x and not more than 50% of x */
     /* (not more than 70% when fighting a unique) */
     /* where x is the danger we are avoiding, usually current hp */
-    if (p1 > avoidance / 10 &&
-        p1 < (avoidance * (borg_fighting_unique ? 7 : 5)) / 10) {
+    if (p1 > borg.avoidance / 10 &&
+        p1 < (borg.avoidance * (borg.near.unique ? 7 : 5)) / 10) {
         /* Simulation */
         /* berserk is a low priority */
         if (borg_simulate)
@@ -1423,8 +1424,8 @@ static int borg_defend_aux_berserk(int p1)
     return 0;
 }
 
-/* 
- * See if the borg is near something evil 
+/*
+ * See if the borg is near something evil
  */
 static bool near_evil(void)
 {
@@ -1446,7 +1447,7 @@ static bool near_evil(void)
             continue;
 
         /* Require current knowledge */
-        if (kill->when < borg_t - 2)
+        if (borg_timer(kill->when) > 2)
             continue;
 
         /* Get grid */
@@ -1495,8 +1496,8 @@ static int borg_defend_aux_smite_evil(int p1)
     /* "some danger" defined as "10% of x and not more than 50% of x */
     /* (not more than 70% when fighting a unique) */
     /* where x is the danger we are avoiding, usually current hp */
-    if (p1 > avoidance / 10 &&
-        p1 < (avoidance * (borg_fighting_unique ? 7 : 5)) / 10) {
+    if (p1 > borg.avoidance / 10 &&
+        p1 < (borg.avoidance * (borg.near.unique ? 7 : 5)) / 10) {
 
         /* Simulation */
         /* smite evil is a low priority */
@@ -1539,19 +1540,19 @@ static int borg_defend_aux_glyph(int p1)
     }
 
     /* Morgoth breaks these in one try so its a waste of mana against him */
-    if (borg_fighting_unique >= 10)
+    if (borg.near.unique >= 10)
         return 0;
 
     /* if very scary, do not allow for much chance of fail */
-    if (p1 > avoidance)
+    if (p1 > borg.avoidance)
         fail_allowed -= 19;
     else
         /* a little scary */
-        if (p1 > (avoidance * 2) / 3)
+        if (p1 > (borg.avoidance * 2) / 3)
             fail_allowed -= 5;
         else
             /* not very scary, allow lots of fail */
-            if (p1 < avoidance / 3)
+            if (p1 < borg.avoidance / 3)
                 fail_allowed += 20;
 
     if (borg_spell_okay_fail(GLYPH_OF_WARDING, fail_allowed))
@@ -1582,9 +1583,9 @@ static int borg_defend_aux_glyph(int p1)
     /* if this is an improvement and we may not avoid monster now and */
     /* we may have before */
     if (p1 > p2
-        && p2 <= (borg_fighting_unique ? ((avoidance * 2) / 3)
-                                       : (avoidance / 2))
-        && p1 > (avoidance / 7)) {
+        && p2 <= (borg.near.unique ? ((borg.avoidance * 2) / 3)
+                                       : (borg.avoidance / 2))
+        && p1 > (borg.avoidance / 7)) {
         /* Simulation */
         if (borg_simulate)
             return (p1 - p2);
@@ -1632,19 +1633,19 @@ static int borg_defend_aux_create_door(int p1)
         return 0;
 
     /* any summoners near?*/
-    if (!borg_fighting_summoner)
+    if (!borg.near.summoner)
         return 0;
 
     /* if very scary, do not allow for much chance of fail */
-    if (p1 > avoidance)
+    if (p1 > borg.avoidance)
         fail_allowed -= 19;
     else
         /* a little scary */
-        if (p1 > (avoidance * 2) / 3)
+        if (p1 > (borg.avoidance * 2) / 3)
             fail_allowed -= 5;
         else
             /* not very scary, allow lots of fail */
-            if (p1 < avoidance / 3)
+            if (p1 < borg.avoidance / 3)
                 fail_allowed += 20;
 
     if (!borg_spell_okay_fail(DOOR_CREATION, fail_allowed))
@@ -1691,9 +1692,9 @@ static int borg_defend_aux_create_door(int p1)
     /* if this is an improvement and we may not avoid monster now and */
     /* we may have before */
     if (p1 > p2
-        && p2 <= (borg_fighting_unique ? ((avoidance * 2) / 3)
-                                       : (avoidance / 2))
-        && p1 > (avoidance / 7)) {
+        && p2 <= (borg.near.unique ? ((borg.avoidance * 2) / 3)
+                                       : (borg.avoidance / 2))
+        && p1 > (borg.avoidance / 7)) {
         /* Simulation */
         if (borg_simulate)
             return (p1 - p2);
@@ -1701,7 +1702,7 @@ static int borg_defend_aux_create_door(int p1)
         /* do it! */
         if (borg_spell_fail(DOOR_CREATION, fail_allowed)) {
             /* Set the breeder flag to keep doors closed. Avoid summons */
-            breeder_level = true;
+            borg.near.breeder = true;
 
             /* Must make a new Sea too */
             borg_needs_new_sea = true;
@@ -1737,7 +1738,7 @@ static int borg_defend_aux_mass_genocide(int p1)
         return 0;
 
     /* See if he is in real danger */
-    if (p1 < avoidance * 12 / 10 && borg_simulate)
+    if (p1 < borg.avoidance * 12 / 10 && borg_simulate)
         return 0;
 
     /* Find a monster and calculate its danger */
@@ -1786,15 +1787,15 @@ static int borg_defend_aux_mass_genocide(int p1)
     p2 = p2 + hit;
 
     /* Be more likely to use this if fighting Morgoth */
-    if (borg_fighting_unique >= 10 && (hit / 3 > 8)) {
+    if (borg.near.unique >= 10 && (hit / 3 > 8)) {
         p2 = p2 * 6 / 10;
     }
 
     /* if this is an improvement and we may not avoid monster now and */
     /* we may have before */
     if (p1 > p2
-        && p2 <= (borg_fighting_unique ? (avoidance * 2 / 3)
-                                       : (avoidance / 2))) {
+        && p2 <= (borg.near.unique ? (borg.avoidance * 2 / 3)
+                                       : (borg.avoidance / 2))) {
         /* Simulation */
         if (borg_simulate)
             return (p1 - p2);
@@ -1883,15 +1884,15 @@ static int borg_defend_aux_genocide(int p1)
     int  fail_allowed   = 25;
 
     /* if very scary, do not allow for much chance of fail */
-    if (p1 > avoidance)
+    if (p1 > borg.avoidance)
         fail_allowed -= 19;
     else
         /* a little scary */
-        if (p1 > (avoidance * 2) / 3)
+        if (p1 > (borg.avoidance * 2) / 3)
             fail_allowed -= 10;
         else
             /* not very scary, allow lots of fail */
-            if (p1 < avoidance / 3)
+            if (p1 < borg.avoidance / 3)
                 fail_allowed += 10;
 
     /* Cant when screwed */
@@ -2046,7 +2047,7 @@ static int borg_defend_aux_genocide(int p1)
             biggest_threat = 0;
 
         /* Do not perform in Danger */
-        if (p1 > avoidance / 5)
+        if (p1 > borg.avoidance / 5)
             biggest_threat = 0;
 
         /* report the danger and most dangerous race */
@@ -2072,12 +2073,12 @@ static int borg_defend_aux_genocide(int p1)
         /* See if he is in real danger, generally,
          * or deeper in the dungeon, conservatively,
          */
-        if (p1 < avoidance * 7 / 10
-            || (borg.trait[BI_CDEPTH] > 75 && p1 < avoidance * 6 / 10))
+        if (p1 < borg.avoidance * 7 / 10
+            || (borg.trait[BI_CDEPTH] > 75 && p1 < borg.avoidance * 6 / 10))
             biggest_danger = 0;
 
         /* Did this help improve my situation? */
-        if (p_without_kill <= (avoidance / 2))
+        if (p_without_kill <= (borg.avoidance / 2))
             biggest_danger = 0;
 
         /* Genociding this race would help me immediately */
@@ -2176,7 +2177,7 @@ static int borg_defend_aux_genocide_nasties(int p1)
         return 0;
 
     /* Do not perform in Danger */
-    if (p1 > avoidance / 4)
+    if (p1 > borg.avoidance / 4)
         return 0;
 
     if (borg_spell_okay_fail(BANISHMENT, 35)
@@ -2276,7 +2277,7 @@ static int borg_defend_aux_earthquake(int p1)
         return 0;
 
     /* See if he is in real danger or fighting summoner*/
-    if (p1 < avoidance * 6 / 10 && !borg_fighting_summoner)
+    if (p1 < borg.avoidance * 6 / 10 && !borg.near.summoner)
         return 0;
 
     /* Several monsters can see the borg and they have ranged attacks */
@@ -2292,15 +2293,15 @@ static int borg_defend_aux_earthquake(int p1)
     }
 
     /* Real danger? */
-    if (threat_count >= 4 && p1 > avoidance * 7 / 10)
+    if (threat_count >= 4 && p1 > borg.avoidance * 7 / 10)
         p2 = p1 / 3;
-    if (threat_count == 3 && p1 > avoidance * 7 / 10)
+    if (threat_count == 3 && p1 > borg.avoidance * 7 / 10)
         p2 = p1 * 6 / 10;
 
     if (p1 > p2
-        && p2 <= (borg_fighting_unique ? ((avoidance * 2) / 3)
-                                       : (avoidance / 2))
-        && p1 > (avoidance / 5)) {
+        && p2 <= (borg.near.unique ? ((borg.avoidance * 2) / 3)
+                                       : (borg.avoidance / 2))
+        && p1 > (borg.avoidance / 5)) {
         /* Simulation */
         if (borg_simulate)
             return (p1 - p2);
@@ -2340,13 +2341,13 @@ static int borg_defend_aux_destruction(int p1)
     }
 
     /* Not if in a sea of runes */
-    if (borg_morgoth_position)
+    if (borg.morgoth_position)
         return 0;
 
     /* See if he is in real danger */
-    if (p1 > avoidance)
+    if (p1 > borg.avoidance)
         real_danger = true;
-    if (p1 > avoidance * 8 / 10 && borg.trait[BI_CDEPTH] >= 90
+    if (p1 > borg.avoidance * 8 / 10 && borg.trait[BI_CDEPTH] >= 90
         && borg.trait[BI_CURHP] <= 300)
         real_danger = true;
 
@@ -2365,7 +2366,7 @@ static int borg_defend_aux_destruction(int p1)
     /* Examine landing zones from teleport scrolls instead of WoD */
     if ((borg.trait[BI_ATELEPORT] || borg.trait[BI_ATELEPORTLVL])
         && !borg.trait[BI_ISBLIND] && !borg.trait[BI_ISCONFUSED]
-        && borg_fighting_unique <= 4 && borg.trait[BI_CURHP] >= 275) {
+        && borg.near.unique <= 4 && borg.trait[BI_CURHP] >= 275) {
         if (borg_caution_teleport(75, 2))
             return 0;
     }
@@ -2383,8 +2384,8 @@ static int borg_defend_aux_destruction(int p1)
         spell = true;
 
     /* Special check for super danger--no fail check */
-    if ((p1 > (avoidance * 4)
-            || (p1 > avoidance && borg.trait[BI_CURHP] <= 150))
+    if ((p1 > (borg.avoidance * 4)
+            || (p1 > borg.avoidance && borg.trait[BI_CURHP] <= 150))
         && borg_equips_staff_fail(sv_staff_destruction))
         spell = true;
 
@@ -2398,9 +2399,9 @@ static int borg_defend_aux_destruction(int p1)
     d = (p1 - p2);
 
     /* Try not to cast this against uniques */
-    if (borg_fighting_unique <= 2 && p1 < avoidance * 2)
+    if (borg.near.unique <= 2 && p1 < borg.avoidance * 2)
         d = 0;
-    if (borg_fighting_unique >= 10)
+    if (borg.near.unique >= 10)
         d = 0;
 
     /* Simulation */
@@ -2430,7 +2431,7 @@ static int borg_defend_aux_teleportlevel(int p1)
         return 0;
 
     /* See if he is in real danger */
-    if (p1 < avoidance * 2)
+    if (p1 < borg.avoidance * 2)
         return 0;
 
     /* Borg_defend() is called before borg_escape().  He may have some
@@ -2460,7 +2461,7 @@ static int borg_defend_aux_teleportlevel(int p1)
         return 0;
 
     /* Try not to cast this against special uniques */
-    if (morgoth_on_level || (borg_fighting_unique >= 1 && borg_as_position))
+    if (borg.near.morgoth || (borg.near.unique >= 1 && borg.status.anti_summon))
         return 0;
 
     /* Simulation */
@@ -2482,11 +2483,11 @@ static int borg_defend_aux_banishment(int p1)
     borg_grid *ag;
 
     /* Only tell away if scared */
-    if (p1 < avoidance * 1 / 10)
+    if (p1 < borg.avoidance * 1 / 10)
         return 0;
 
     /* if very scary, do not allow for much chance of fail */
-    if (p1 > avoidance * 4)
+    if (p1 > borg.avoidance * 4)
         fail_allowed -= 10;
 
     /* Cant when screwed */
@@ -2640,17 +2641,17 @@ static int borg_defend_aux_banishment(int p1)
         p2 = 9999;
 
     /* Try not to cast this against Morgy/Sauron */
-    if (borg_fighting_unique >= 10 && borg.trait[BI_CURHP] > 250
+    if (borg.near.unique >= 10 && borg.trait[BI_CURHP] > 250
         && borg.trait[BI_CDEPTH] == 99)
         p2 = 9999;
-    if (borg_fighting_unique >= 10 && borg.trait[BI_CURHP] > 350
+    if (borg.near.unique >= 10 && borg.trait[BI_CURHP] > 350
         && borg.trait[BI_CDEPTH] == 100)
         p2 = 9999;
 
     /* check to see if I am left better off */
     if (p1 > p2
-        && p2 <= (borg_fighting_unique ? ((avoidance * 2) / 3)
-                                       : (avoidance / 2))) {
+        && p2 <= (borg.near.unique ? ((borg.avoidance * 2) / 3)
+                                       : (borg.avoidance / 2))) {
         /* Simulation */
         if (borg_simulate)
             return (p1 - p2);
@@ -2674,11 +2675,11 @@ static int borg_defend_aux_inviso(int p1)
         return 0;
 
     /* not recent */
-    if (borg_t > borg.need_see_invis + 5)
+    if (borg_timer(borg.need_see_invis) > 45)
         return 0;
 
     /* too dangerous to cast */
-    if (p1 > avoidance * 2)
+    if (p1 > borg.avoidance * 2)
         return 0;
 
     /* Do I have anything that will work? */
@@ -2714,8 +2715,8 @@ static int borg_defend_aux_inviso(int p1)
         || borg_activate_item(act_detect_invis)
         || borg_activate_item(act_tmd_sinvis) || borg_activate_item(act_tmd_esp)
         || borg_activate_item(act_detect_evil)) {
-        borg.see_inv
-            = 3000; /* hack, actually a snap shot, no ignition message */
+        /* hack, actually a snap shot, no ignition message */
+        borg.see_inv = 3000;
         return (10);
     }
     if (borg_quaff_potion(sv_potion_detect_invis)) {
@@ -2752,7 +2753,7 @@ static int borg_defend_aux_lbeam(int p1)
 
     /* Light Beam section to spot non seen guys */
     /* not recent, don't bother */
-    if (borg_t > (borg.need_see_invis + 2))
+    if (borg_timer(borg.need_see_invis) > 48)
         return 0;
 
     /* Check to see if I am in a hallway */
@@ -2797,7 +2798,7 @@ static int borg_defend_aux_lbeam(int p1)
         return 0;
 
     /* Make sure I am not in too much danger */
-    if (borg_simulate && p1 > (avoidance * 3) / 4)
+    if (borg_simulate && p1 > (borg.avoidance * 3) / 4)
         return 0;
 
     /* test the beam function */
@@ -2827,8 +2828,8 @@ static int borg_defend_aux_panel_shift(void)
         return 0;
 
     /* if Morgy is on my panel, dont do it */
-    if (borg.trait[BI_CDEPTH] == 100 && w_y == morgy_panel_y
-        && w_x == morgy_panel_x)
+    if (borg.trait[BI_CDEPTH] == 100 && w_y == borg.mon.morgoth_panel.y
+        && w_x == borg.mon.morgoth_panel.x)
         return 0;
 
     /* Which direction do we need to move? */
@@ -2890,8 +2891,8 @@ static int borg_defend_aux_panel_shift(void)
 
         /* Not if I just did one */
         if (borg.when_shift_panel
-            && (borg_t - borg.when_shift_panel <= 10
-                || borg_t - borg_t_morgoth <= 10)) {
+            && (borg_timer(borg.when_shift_panel) <= 10
+                || borg_timer(borg.time.morgoth) <= 10)) {
             /* do nothing */
         } else {
             /* if not the first step */
@@ -2907,7 +2908,7 @@ static int borg_defend_aux_panel_shift(void)
                         borg_keypress(I2D(dir));
                     borg_note("# Shifted panel as a precaution.");
                     /* Mark the time to avoid loops */
-                    borg.when_shift_panel = borg_t;
+                    borg.when_shift_panel = borg.time.now;
                     /* Leave the panel shift mode */
                     borg_keypress(ESCAPE);
                 }
@@ -2921,7 +2922,7 @@ static int borg_defend_aux_panel_shift(void)
                     borg_keypress(I2D(dir));
                     borg_note("# Shifted panel as a precaution.");
                     /* Mark the time to avoid loops */
-                    borg.when_shift_panel = borg_t;
+                    borg.when_shift_panel = borg.time.now;
                     /* Leave the panel shift mode */
                     borg_keypress(ESCAPE);
                 }
@@ -2936,7 +2937,7 @@ static int borg_defend_aux_panel_shift(void)
                         borg_keypress(I2D(dir));
                     borg_note("# Shifted panel as a precaution.");
                     /* Mark the time to avoid loops */
-                    borg.when_shift_panel = borg_t;
+                    borg.when_shift_panel = borg.time.now;
                     /* Leave the panel shift mode */
                     borg_keypress(ESCAPE);
                 }
@@ -2951,7 +2952,7 @@ static int borg_defend_aux_panel_shift(void)
                         borg_keypress(I2D(dir));
                     borg_note("# Shifted panel as a precaution.");
                     /* Mark the time to avoid loops */
-                    borg.when_shift_panel = borg_t;
+                    borg.when_shift_panel = borg.time.now;
                     /* Leave the panel shift mode */
                     borg_keypress(ESCAPE);
                 }
@@ -2976,13 +2977,13 @@ static int borg_defend_aux_rest(void)
 {
     int i;
 
-    if (!borg_morgoth_position
-        && (!borg_as_position || borg_t - borg_t_antisummon >= 50))
+    if (!borg.morgoth_position
+        && (!borg.status.anti_summon || borg_timer(borg.time.antisummon) >= 50))
         return 0;
 
     /* Not if Morgoth is not on this level */
-    if (!morgoth_on_level
-        && (!borg_as_position || borg_t - borg_t_antisummon >= 50))
+    if (!borg.near.morgoth
+        && (!borg.status.anti_summon || borg_timer(borg.time.antisummon) >= 50))
         return 0;
 
     /* never in town */
@@ -3019,14 +3020,14 @@ static int borg_defend_aux_rest(void)
 
         /* If I can see Morgoth or a guy with Ranged Attacks, don't rest. */
         if (borg_los(borg.c.y, borg.c.x, kill->pos.y, kill->pos.x)
-            && (kill->r_idx == borg_morgoth_id || kill->ranged_attack)
-            && avoidance <= borg.trait[BI_CURHP]) {
+            && (kill->r_idx == borg.mon.morgoth || kill->ranged_attack)
+            && borg.avoidance <= borg.trait[BI_CURHP]) {
             borg_note("# Not resting. I can see Morgoth or a shooter.");
             return 0;
         }
 
         /* If a little twitchy, its ok to stay put */
-        if (avoidance > borg.trait[BI_CURHP])
+        if (borg.avoidance > borg.trait[BI_CURHP])
             continue;
     }
 
@@ -3060,7 +3061,7 @@ static int borg_defend_aux_tele_away_morgoth(void)
         return 0;
 
     /* Not if Morgoth is not on this level */
-    if (!morgoth_on_level)
+    if (!borg.near.morgoth)
         return 0;
 
     /* Cant when screwed */
@@ -3115,7 +3116,7 @@ static int borg_defend_aux_tele_away_morgoth(void)
             continue;
 
         /* Require current knowledge */
-        if (kill->when < borg_t - 2)
+        if (borg_timer(kill->when) > 2)
             continue;
 
         /* Get grid */
@@ -3209,7 +3210,7 @@ static int borg_defend_aux_banishment_morgoth(void)
     struct monster_race *r_ptr;
 
     /* Not if Morgoth is not on this level */
-    if (!morgoth_on_level)
+    if (!borg.near.morgoth)
         return 0;
 
     /* Cant when screwed */
@@ -3239,7 +3240,7 @@ static int borg_defend_aux_banishment_morgoth(void)
     /* Only if on level 100 and in a sea of runes or
      * in the process of building one
      */
-    if (!borg_morgoth_position && glyphs < 3) return 0;
+    if (!borg.morgoth_position && glyphs < 3) return 0;
 #endif
 
     banish_evil = borg_spell_okay_fail(BANISH_EVIL, fail_allowed);
@@ -3270,7 +3271,7 @@ static int borg_defend_aux_banishment_morgoth(void)
         r_ptr = &r_info[kill->r_idx];
 
         /* Require current knowledge */
-        if (kill->when < borg_t - 2)
+        if (borg_timer(kill->when) > 2)
             continue;
 
         /* Never try on non-evil guys if doing banish evil */
@@ -3350,11 +3351,11 @@ static int borg_defend_aux_light_morgoth(void)
     borg_kill *kill;
 
     /* Only if on level 100 and in a sea of runes */
-    if (!borg_morgoth_position)
+    if (!borg.morgoth_position)
         return 0;
 
     /* Not if Morgoth is not on this level */
-    if (!morgoth_on_level)
+    if (!borg.near.morgoth)
         return 0;
 
     /* Cant when screwed */
@@ -3382,11 +3383,11 @@ static int borg_defend_aux_light_morgoth(void)
             continue;
 
         /* Skip non- Morgoth monsters */
-        if (kill->r_idx != borg_morgoth_id)
+        if (kill->r_idx != borg.mon.morgoth)
             continue;
 
         /* Require current knowledge */
-        if (kill->when < borg_t - 2)
+        if (borg_timer(kill->when) > 2)
             continue;
 
         /* Acquire location */
@@ -3567,7 +3568,7 @@ bool borg_defend(int p1)
             borg.c.y, borg.c.x, 1, false, false); /* Note false for danger!! */
         borg_attacking = false;
         if (p > borg_fear_region[borg.c.y / 11][borg.c.x / 11]
-            || borg_fighting_unique) {
+            || borg.near.unique) {
             if (borg_spell(RESISTANCE)) {
                 borg_note(format("# Refreshing Resistance.  "
                                  "borg.resistance=%d, player->=%d, (ratio=%d)",

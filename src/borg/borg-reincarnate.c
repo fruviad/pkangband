@@ -423,6 +423,7 @@ void reincarnate_borg(void)
     /* Cheat death */
     borg.trait[BI_MAXDEPTH]  = 0;
     borg.trait[BI_MAXCLEVEL] = 1;
+    borg.time.now            = 100;
 
     /* Flush message buffer */
     borg_parse(NULL);
@@ -437,16 +438,16 @@ void reincarnate_borg(void)
     borg.trait[BI_ISCUT] = borg.trait[BI_ISSTUN] = borg.trait[BI_ISHEAVYSTUN]
         = borg.trait[BI_ISIMAGE] = borg.trait[BI_ISSTUDY] = false;
 
-    /* reset our panel clock */
-    borg.time_this_panel = 1;
+    /* reset our anti-bounce count */
+    borg.antibounce_count = 1;
 
     /* reset our vault/unique check */
-    vault_on_level    = false;
-    unique_on_level   = 0;
-    scaryguy_on_level = false;
+    borg.status.vault    = false;
+    borg.mon.unique   = 0;
+    borg.mon.scary = false;
 
     /* reset our breeder flag */
-    breeder_level = false;
+    borg.near.breeder = false;
 
     /* Assume not leaving the level */
     borg.goal.leaving = false;
@@ -567,7 +568,7 @@ void reincarnate_borg(void)
 
     /* Message */
     borg_note("# Respawning");
-    borg_respawning = 5;
+    borg.status.respawning = 5;
 
     /* fully healed and rested */
     player->chp = player->mhp;

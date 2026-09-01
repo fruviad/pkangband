@@ -34,6 +34,7 @@
 #include "borg-item-use.h"
 #include "borg-item-val.h"
 #include "borg-power.h"
+#include "borg-think-dungeon-util.h"
 #include "borg-trait.h"
 #include "borg.h"
 
@@ -1167,9 +1168,9 @@ bool borg_dump_quiver(void)
 
     /* Forbid if been sitting on level forever */
     /*    Just come back and work through the loop later */
-    if (borg_t - borg_began > 2000)
+    if (borg_timer(borg.time.level) > 2000)
         return false;
-    if (borg.time_this_panel > 150)
+    if (borg.antibounce_count > 150)
         return false;
 
     /* don't crush stuff unless we are on a floor */
@@ -1238,7 +1239,7 @@ bool borg_dump_quiver(void)
         }
 
         /* Did something */
-        borg.time_this_panel++;
+        borg.antibounce_count++;
         return true;
     }
 
@@ -1281,9 +1282,9 @@ bool borg_remove_stuff(void)
 
     /* Forbid if been sitting on level forever */
     /*    Just come back and work through the loop later */
-    if (borg_t - borg_began > 2000)
+    if (borg_timer(borg.time.level) > 2000)
         return false;
-    if (borg.time_this_panel > 150)
+    if (borg.antibounce_count > 150)
         return false;
 
     /* Start with good power */
@@ -1358,7 +1359,7 @@ bool borg_remove_stuff(void)
         borg_keypress(all_letters_nohjkl[b_i - INVEN_WIELD]);
 
         /* Did something */
-        borg.time_this_panel++;
+        borg.antibounce_count++;
         return true;
     }
 

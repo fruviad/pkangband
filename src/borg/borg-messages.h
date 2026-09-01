@@ -38,6 +38,8 @@ extern char borg_match[128];
 
 extern void borg_parse(char *msg);
 
+extern bool borg_get_messages(struct keypress* key, struct loc cursor);
+
 extern void borg_init_messages(void);
 
 extern void borg_free_messages(void);

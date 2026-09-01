@@ -34,9 +34,9 @@
 #include "borg-item-val.h"
 #include "borg-magic.h"
 #include "borg-power.h"
-#include "borg-store-sell.h"
 #include "borg-store.h"
 #include "borg-think.h"
+#include "borg-think-dungeon-util.h"
 #include "borg-trait.h"
 #include "borg.h"
 
@@ -273,7 +273,7 @@ bool borg_swap_rings(void)
 
     /* Forbid if been sitting on level forever */
     /*    Just come back and work through the loop later */
-    if (borg_t - borg_began > 1000)
+    if (borg_timer(borg.time.level) > 1000)
         return false;
     if (borg.trait[BI_CDEPTH] != 0)
         return false;
@@ -427,7 +427,7 @@ bool borg_wear_rings(void)
 
     /* Forbid if been sitting on level forever */
     /*    Just come back and work through the loop later */
-    if (borg_t - borg_began > 2000)
+    if (borg_timer(borg.time.level) > 2000)
         return false;
 
     /* Scan inventory */
@@ -511,7 +511,7 @@ bool borg_wear_rings(void)
         borg_keypress(all_letters_nohjkl[b_i]);
 
         /* Did something */
-        borg.time_this_panel++;
+        borg.antibounce_count++;
         return true;
     }
 
@@ -556,7 +556,7 @@ bool borg_backup_swap(int p)
 
     /* Forbid if been sitting on level forever */
     /*    Just come back and work through the loop later */
-    if (borg.time_this_panel > 300)
+    if (borg.antibounce_count > 300)
         return false;
 
     /* make sure we have an appropriate swap */
@@ -710,8 +710,8 @@ bool borg_backup_swap(int p)
 
     /* good swap.  Make sure it helps a significant amount */
     if (p > b_p
-        && b_p <= (borg_fighting_unique ? ((avoidance * 2) / 3)
-                                        : (avoidance / 2))) {
+        && b_p <= (borg.near.unique ? ((borg.avoidance * 2) / 3)
+                                        : (borg.avoidance / 2))) {
         /* Log */
         borg_note(format("# Swapping backup.  (%ld < %d).", (long int)b_p, p));
 
@@ -777,9 +777,9 @@ bool borg_wear_stuff(void)
 
     /* Forbid if been sitting on level forever */
     /*    Just come back and work through the loop later */
-    if (borg_t - borg_began > 2000)
+    if (borg_timer(borg.time.level) > 2000)
         return false;
-    if (borg.time_this_panel > 1300)
+    if (borg.antibounce_count > 1300)
         return false;
 
     /* Scan inventory */
@@ -811,7 +811,7 @@ bool borg_wear_stuff(void)
         for (o = 0; o < track_worn_num; o++) {
             /* Examine the worn list */
             if (track_worn_num >= 1 && track_worn_name1[o] == item->art_idx
-                && track_worn_time > borg_t - 10) {
+                && borg_timer(track_worn_time) > 10) {
                 /* Recently worn item */
                 recently_worn = true;
             }
@@ -1010,7 +1010,7 @@ bool borg_wear_stuff(void)
             borg_keypress(all_letters_nohjkl[b_ii - INVEN_WIELD]);
 
             /* Did something */
-            borg.time_this_panel++;
+            borg.antibounce_count++;
             return true;
         }
 
@@ -1020,13 +1020,13 @@ bool borg_wear_stuff(void)
         /* Wear it */
         borg_keypress('w');
         borg_keypress(all_letters_nohjkl[b_i]);
-        borg.time_this_panel++;
+        borg.antibounce_count++;
 
         /* Track the newly worn artifact item to avoid loops */
         if (item->art_idx && (track_worn_num < track_worn_size)) {
             borg_note("# Noting the wearing of artifact.");
             track_worn_name1[track_worn_num] = item->art_idx;
-            track_worn_time                  = borg_t;
+            track_worn_time                  = borg.time.now;
             track_worn_num++;
         }
         return true;
@@ -1324,7 +1324,7 @@ static void borg_best_stuff_aux(
  * single changes such as switch sword of flames for sword of
  * electricity.  This allows multiple changes to get the most
  * powerful set of items, out of everything worn, in equipment
- * and in the home.  
+ * and in the home.
  */
 bool borg_best_stuff(void)
 {
@@ -1429,7 +1429,7 @@ bool borg_best_stuff(void)
 }
 
 /*
- * Clear out the "best" swap list and trigger to do another 
+ * Clear out the "best" swap list and trigger to do another
  */
 void borg_clear_best(void)
 {
@@ -1474,7 +1474,7 @@ bool borg_wear_recharge(void)
 
         /* Where can it be worn? */
         slot = borg_wield_slot(item);
-        
+
         /* if this is a rod, only count it if it is a rod of recall */
         /* and we are in town.  This is to prevent walking down when */
         /* the borg has a perfectly serviceable rod */

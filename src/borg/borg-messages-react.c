@@ -92,14 +92,14 @@ void borg_react(const char *msg, const char *buf)
 /*
  * Handle various messages that need response
  */
-bool borg_react_prompted(const char* buf, struct keypress *key, int x, int y)
+bool borg_react_prompted(const char* buf, struct keypress *key)
 {
     /* Mega-Hack -- Catch "Die? [y/n]" messages */
     /* If there is text on the first line... */
     /* And the game does not want a command... */
     /* And the cursor is on the top line... */
     /* And the text acquired above is "Die?" */
-    if (y == 0 && x >= 4 && prefix(buf, "Die?") && borg_cheat_death) {
+    if (prefix(buf, "Die?") && borg.status.cheat_death) {
         /* Flush messages */
         borg_parse(NULL);
 
@@ -125,11 +125,12 @@ bool borg_react_prompted(const char* buf, struct keypress *key, int x, int y)
 
         if (!borg_cfg[BORG_CHEAT_DEATH]) {
             reincarnate_borg();
-            borg_respawning = 7;
+            borg.status.respawning = 7;
         }
         else
             do_cmd_wiz_cure_all(0);
 
+        borg.time.now = 100;
         key->code = 'n';
         return true;
     }
@@ -138,7 +139,7 @@ bool borg_react_prompted(const char* buf, struct keypress *key, int x, int y)
      * confirmation. This flush is messing up the borg.  This will allow the
      * borg to work around the flush Attempt to catch "Attempt it anyway? [y/n]"
      */
-    if (y == 0 && x >= 4 && prefix(buf, "Atte")) {
+    if (prefix(buf, "Atte")) {
         /* Return the confirmation */
         if (borg_cfg[BORG_VERBOSE])
             borg_note("# Confirming use of Spell/Prayer when low on mana.");
@@ -147,7 +148,7 @@ bool borg_react_prompted(const char* buf, struct keypress *key, int x, int y)
     }
 
     /* Wearing two rings.  Place this on the left hand */
-    if (y == 0 && x >= 12 && (prefix(buf, "(Equip: c-d,"))) {
+    if (prefix(buf, "(Equip: c-d,")) {
         /* Left hand */
         key->code = 'c';
         if (borg_cfg[BORG_VERBOSE])
@@ -156,12 +157,11 @@ bool borg_react_prompted(const char* buf, struct keypress *key, int x, int y)
     }
     /*
      * This frequently catches when the key queue has become messed up
-     * The borg will press a key and get a "Direction?" type prompt and 
-     * not be expecting it. The borg should halt in that case so the bad 
+     * The borg will press a key and get a "Direction?" type prompt and
+     * not be expecting it. The borg should halt in that case so the bad
      * code can be found and cleaned up.
      */
-    if (y == 0 && !borg_inkey(false)
-        && (x >= 10) && strncmp(buf, "Direction", 9) == 0) {
+    if (!borg_inkey(false) && strncmp(buf, "Direction", 9) == 0) {
         if (borg_confirm_target) {
             if (borg_cfg[BORG_VERBOSE])
                 borg_note("# Expected request for Direction.");
@@ -184,7 +184,7 @@ bool borg_react_prompted(const char* buf, struct keypress *key, int x, int y)
     /* Stepping on a stack when the inventory is full gives a message */
     /* and the keypress when given this message is requeued so the borg */
     /* thinks it is a user keypress when it isn't */
-    if (y == 0 && x >= 12 && (prefix(buf, "You have no room"))) {
+    if (prefix(buf, "You have no room")) {
         if (borg_cfg[BORG_VERBOSE])
             borg_note("# 'You have no room' is a no-op");
         /* key code 0 seems to be a no-op and ignored as a user keypress */
@@ -196,7 +196,7 @@ bool borg_react_prompted(const char* buf, struct keypress *key, int x, int y)
     /* This will be hit if the borg uses an unidentified effect that has */
     /* EF_SELECT/multiple effects. Always pick "one of the following at */
     /* random" when the item is used post ID, an effect will be selected */
-    if (!borg_inkey(false) && y == 1 && prefix(buf, "Which effect?")) {
+    if (!borg_inkey(false) && prefix(buf, "Which effect?")) {
         if (borg_cfg[BORG_VERBOSE])
             borg_note("# Use of unknown object with multiple effects");
         /* the first selection (a) is random */
@@ -217,8 +217,7 @@ bool borg_react_prompted(const char* buf, struct keypress *key, int x, int y)
 
     /* prompt for stepping in lava.  This should be avoided but */
     /* if the borg is stuck, give him a pass */
-    if (y == 0 && x >= 12
-        && (prefix(buf, "The lava will") || prefix(buf, "Lava blocks y"))) {
+    if (prefix(buf, "The lava will") || prefix(buf, "Lava blocks y")) {
         if (borg_cfg[BORG_VERBOSE])
             borg_note("# ignoring Lava warning");
         /* yes step in */
@@ -227,8 +226,7 @@ bool borg_react_prompted(const char* buf, struct keypress *key, int x, int y)
     }
 
     /* prompt for recall depth */
-    if (!borg_inkey(false) && y == 0 && x >= 12
-        && prefix(buf, "Set recall depth")) {
+    if (!borg_inkey(false) && prefix(buf, "Set recall depth")) {
         if (borg_cfg[BORG_VERBOSE])
             borg_note("# Use of unknown object with recall");
         /* the first selection (a) is random */
@@ -237,7 +235,7 @@ bool borg_react_prompted(const char* buf, struct keypress *key, int x, int y)
     }
 
     /* make sure inventory is used for throwing */
-    if (y == 1 && x >= 12 && (prefix(buf, "Throw which item? (Throw"))) {
+    if (prefix(buf, "Throw which item? (Throw")) {
         if (borg_cfg[BORG_VERBOSE])
             borg_note("# switching to inventory for throws");
         /* yes step in */
@@ -246,7 +244,7 @@ bool borg_react_prompted(const char* buf, struct keypress *key, int x, int y)
     }
 
     /* Sometimes the borg will overshoot the range limit of his shooter */
-    if (x >= 12 && (prefix(buf, "Target out of range"))) {
+    if (prefix(buf, "Target out of range")) {
         /* Fire Anyway? [Y/N] */
         /* yes step in */
         key->code = 'y';
@@ -254,13 +252,70 @@ bool borg_react_prompted(const char* buf, struct keypress *key, int x, int y)
     }
 
     /* Word of Recall -- cancel */
-    if (x >= 25 && (prefix(buf, "Word of Recall is already"))) {
+    if (prefix(buf, "Word of Recall is already")) {
         /* this shouldn't happen but can if the borg is "playing with" and unknown rod */
         if (!borg.trying_unknown)
             borg_oops("unexpected double Word of Recall");
 
         /* no canceling it */
         key->code = 'n';
+        return true;
+    }
+
+    /* exit sub screens */
+
+    /* Parse equipment mode */
+    /* this shouldn't happen because we now pull equipment information */
+    /* directly from the game */
+    if (streq(buf, "(Equipment) ")) {
+
+        /* Leave this mode */
+        key->code = ESCAPE;
+
+        /* Done */
+        return true;
+    }
+
+    /* Parse Inventory mode */
+    /* this shouldn't happen because we now pull inventory information */
+    /* directly from the game */
+    if (streq(buf, "(Inventory) ")) {
+
+        /* Leave this mode */
+        key->code = ESCAPE;
+
+        /* Done */
+        return true;
+    }
+
+    /* Parse worn equipment mode */
+    /* this shouldn't happen because we now pull worn equipment information */
+    /* directly from the game */
+    if (streq(buf, "Wear o")) {
+        /* Leave this mode */
+        key->code = ESCAPE;
+
+        /* Done */
+        return true;
+    }
+
+    /* Check for "sector" mode */
+    if (prefix(buf, "Map sector ")) {
+        /* Leave this mode */
+        key->code = ESCAPE;
+
+        /* Done */
+        return true;
+    }
+
+    /* Check for "browse spells" mode */
+    /* this shouldn't happen because we now pull spell information */
+    /* directly from the game */
+    if (streq(buf, "Lv Mana Fail")) {
+        /* Leave this mode */
+        key->code = ESCAPE;
+
+        /* Done */
         return true;
     }
 

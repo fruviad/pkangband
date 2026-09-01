@@ -36,7 +36,7 @@ extern void borg_react(const char *msg, const char *buf);
 /*
  * Handle various messages that need response
  */
-extern bool borg_react_prompted(const char* buf, struct keypress* key, int x, int y);
+extern bool borg_react_prompted(const char* buf, struct keypress* key);
 
 /*
  * Clear saved messsages

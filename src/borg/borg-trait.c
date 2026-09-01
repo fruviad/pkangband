@@ -719,11 +719,6 @@ static const int borg_adj_mag_stat[STAT_RANGE] = {
 };
 
 /*
- * All the information the borg knows about itself
- */
-struct borg_struct borg;
-
-/*
  * Goal variables
  */
 bool borg_simulate; /* Simulation flag */
@@ -3133,7 +3128,7 @@ void borg_notice_player(void)
     }
 
     /* Track if Sauron is dead Cheat */
-    borg.trait[BI_SAURON_DEAD] = borg_race_death[borg_sauron_id];
+    borg.trait[BI_SAURON_DEAD] = borg_race_death[borg.mon.sauron];
 }
 
 void borg_trait_init(void)

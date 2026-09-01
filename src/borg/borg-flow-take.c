@@ -243,7 +243,7 @@ static int borg_new_take(struct object_kind *kind, int y, int x)
     ag->take = n;
 
     /* Timestamp */
-    take->when = borg_t;
+    take->when = borg.time.now;
 
     /* Not had Orb of Draining cast on it */
     take->orbed = false;
@@ -314,7 +314,7 @@ bool observe_take_diff(int y, int x, uint8_t a, wchar_t c)
     take = &borg_takes[i];
 
     /* Timestamp */
-    take->when = borg_t;
+    take->when = borg.time.now;
 
     /* Okay */
     return true;
@@ -396,7 +396,7 @@ bool observe_take_move(int y, int x, int d, uint8_t a, wchar_t c)
         }
 
         /* Timestamp */
-        take->when = borg_t;
+        take->when = borg.time.now;
 
         /* Mark as seen */
         take->seen = true;
@@ -442,7 +442,7 @@ bool borg_flow_take(bool viewable, int nearness)
         return false;
 
     /* If ScaryGuy, no chasing down items */
-    if (scaryguy_on_level)
+    if (borg.mon.scary)
         return false;
 
     /* If out of fuel, don't mess around */
@@ -450,7 +450,7 @@ bool borg_flow_take(bool viewable, int nearness)
         return false;
 
     /* Not if sitting in a sea of runes */
-    if (borg_morgoth_position)
+    if (borg.morgoth_position)
         return false;
 
     /* Starting over on count */

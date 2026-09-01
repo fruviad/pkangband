@@ -38,9 +38,6 @@ const char *SHOP_MENU_ITEMS = "acfhjmnoqruvyzABDFGHJKLMNOPQRSTUVWXYZ";
 borg_shop *borg_shops; /* Current "shops" */
 borg_shop *borg_safe_shops; /* Safety (save) "shops" */
 
-int borg_food_onsale = -1; /* Are shops selling food? */
-int borg_fuel_onsale = -1; /* Are shops selling fuel? */
-
 
 /* check for the a full home */
 bool borg_home_full(void)
@@ -144,7 +141,7 @@ static int32_t borg_price_item(
 /*
  * Cheat the "Store" screen
  */
-void borg_cheat_store(void)
+void borg_notice_store(void)
 {
     int             slot, i;
     int             store_num;
@@ -180,23 +177,6 @@ void borg_cheat_store(void)
             borg_item_analyze(
                 b_item, o_ptr, buf, store_num == BORG_HOME ? false : true);
 
-            /* Check if the general store has certain items */
-            if (store_num == 0) {
-                /* Food -- needed for money scumming */
-                if (b_item->tval == TV_FOOD && b_item->sval == sv_food_ration)
-                    borg_food_onsale = b_item->iqty;
-
-                /* Fuel for lanterns */
-                if (b_item->tval == TV_FLASK
-                    && borg_items[INVEN_LIGHT].sval == sv_light_lantern)
-                    borg_fuel_onsale = b_item->iqty;
-
-                /* Fuel for lanterns */
-                if (b_item->tval == TV_LIGHT
-                    && borg_items[INVEN_LIGHT].sval == sv_light_torch)
-                    borg_fuel_onsale = b_item->iqty;
-            }
-
             /* Save the declared cost */
             b_item->cost = borg_price_item(o_ptr, false, 1, store_num);
         }
@@ -212,11 +192,10 @@ void borg_cheat_store(void)
 void borg_init_store(void)
 {
     if (f_info[FEAT_HOME].shopnum - 1 != BORG_HOME) {
-        msg(format("borg thinks home is %d, game thinks home is %d.  aborting. ", 
+        msg(format("borg thinks home is %d, game thinks home is %d.  aborting. ",
             f_info[FEAT_HOME].shopnum - 1, BORG_HOME));
         borg_init_failure = true;
     }
-
 
     /* Make the stores in the town */
     borg_shops = mem_zalloc(z_info->store_max * sizeof(borg_shop));

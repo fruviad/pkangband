@@ -162,9 +162,9 @@ static void borg_note_internal(bool warning, const char *what)
     /* Mega-Hack -- Check against the swap loops */
     if (strstr(what, "Best Combo") || strstr(what, "Taking off ")) {
         /* Tick the anti loop clock */
-        borg.time_this_panel += 10;
+        borg.antibounce_count += 10;
         borg_note(
-            format("# Anti-loop variable tick (%d).", borg.time_this_panel));
+            format("# Anti-loop variable tick (%d).", borg.antibounce_count));
     }
 
     /* Scan windows */
@@ -336,7 +336,7 @@ errr borg_keypress(keycode_t k)
 /*
  * Add a keypress to the history of what has been passed back to the game
  */
-struct keypress save_keypress_history(struct keypress kp)
+struct keypress borg_save_keypress(struct keypress kp)
 {
     /* Note the keypress */
     if (borg_cfg[BORG_VERBOSE]) {

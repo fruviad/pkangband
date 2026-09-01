@@ -41,6 +41,7 @@
 #include "borg-magic.h"
 #include "borg-projection.h"
 #include "borg-trait.h"
+#include "borg-think-dungeon-util.h"
 #include "borg-update.h"
 #include "borg-util.h"
 #include "borg.h"
@@ -50,7 +51,6 @@
  */
 
 int16_t borg_kills_cnt;
-int16_t borg_kills_summoner; /* index of a summoner */
 int16_t borg_kills_nxt;
 
 borg_kill *borg_kills;
@@ -80,34 +80,11 @@ static int           borg_normal_size; /* Number of normals */
 static unsigned int *borg_normal_what; /* Indexes of normals */
 static const char  **borg_normal_text; /* Names of normals */
 
-/*
- * Monsters or Uniques on this level
- */
-unsigned int borg_morgoth_id   = 0;
-unsigned int borg_sauron_id    = 0;
-unsigned int borg_tarrasque_id = 0;
-unsigned int borg_t_id         = 0;
-unsigned int unique_on_level;
-bool         scaryguy_on_level; /* flee from certain guys */
-bool         morgoth_on_level;
-bool         borg_morgoth_position;
-bool         breeder_level = false; /* Borg will shut door */
-
 uint8_t borg_nasties_num   = 7; /* Current size of the list */
 uint8_t borg_nasties_count[7];
 char    borg_nasties[7]       = { 'Z', 'A', 'V', 'U', 'L', 'W',
              'D' }; /* Order of Nastiness.  Hounds < Demons < Wyrms */
 uint8_t borg_nasties_limit[7] = { 20, 20, 10, 10, 10, 10, 10 };
-
-int morgy_panel_y;
-int morgy_panel_x;
-
-/* am I fighting a unique? */
-int  borg_fighting_unique;
-bool borg_fighting_evil_unique; /* Need to know if evil for Priest Banishment */
-
-/* am I fighting a summoner? */
-bool borg_fighting_summoner;
 
 /*
  * Helper to get the name of a kill.  Adds safeguards against
@@ -223,14 +200,14 @@ static void borg_update_kill_new(int i)
     kill->ranged_attack = num;
 
     /* We want to remember Morgy's panel */
-    if (kill->r_idx == borg_morgoth_id) {
+    if (kill->r_idx == borg.mon.morgoth) {
         j = ((kill->pos.y - borg_panel_hgt() / 2) / borg_panel_hgt())
             * borg_panel_hgt();
         if (j < 0)
             j = 0;
         if (j > DUNGEON_HGT - SCREEN_HGT)
             j = DUNGEON_HGT - SCREEN_HGT;
-        morgy_panel_y = j;
+        borg.mon.morgoth_panel.y = j;
 
         j = ((kill->pos.x - borg_panel_wid() / 2) / borg_panel_wid())
             * borg_panel_wid();
@@ -238,7 +215,7 @@ static void borg_update_kill_new(int i)
             j = 0;
         if (j > DUNGEON_WID - SCREEN_WID)
             j = DUNGEON_WID - SCREEN_WID;
-        morgy_panel_x = j;
+        borg.mon.morgoth_panel.x = j;
     }
 
     /* Force the monster to be sitting on a floor
@@ -371,14 +348,14 @@ static void borg_update_kill_old(int i)
         borg_race_death[i] = 1;
 
     /* We want to remember Morgy's panel */
-    if (kill->r_idx == borg_morgoth_id) {
+    if (kill->r_idx == borg.mon.morgoth) {
         j = ((kill->pos.y - borg_panel_hgt() / 2) / borg_panel_hgt())
             * borg_panel_hgt();
         if (j < 0)
             j = 0;
         if (j > DUNGEON_HGT - SCREEN_HGT)
             j = DUNGEON_HGT - SCREEN_HGT;
-        morgy_panel_y = j;
+        borg.mon.morgoth_panel.y = j;
 
         j = ((kill->pos.x - borg_panel_wid() / 2) / borg_panel_wid())
             * borg_panel_wid();
@@ -386,7 +363,7 @@ static void borg_update_kill_old(int i)
             j = 0;
         if (j > DUNGEON_WID - SCREEN_WID)
             j = DUNGEON_WID - SCREEN_WID;
-        morgy_panel_x = j;
+        borg.mon.morgoth_panel.x = j;
     }
 
     /* HACK/CHEAT: Force the monster to be sitting on a floor
@@ -429,7 +406,7 @@ void borg_delete_kill(int i)
 
     /* save a time stamp of when the last multiplier was killed */
     if (rf_has(r_info[kill->r_idx].flags, RF_MULTIPLY))
-        borg.when_last_kill_mult = borg_t;
+        borg.time.last_kill_mult = borg.time.now;
 
     /* Kill the monster */
     memset(kill, 0, sizeof(borg_kill));
@@ -596,14 +573,18 @@ void borg_follow_kill(int i)
         return;
     }
 
+#if 0
+//    this makes no sense... a long time on the level
+// and just delete all the monsters? comment out for now.
     /* prevent overflows */
-    if (borg_t > 20000) {
+    if (borg_timer(borg.time.level) > 20000) {
         /* Just delete the monster */
         borg_delete_kill(i);
 
         /* Done */
         return;
     }
+#endif
 
     /* Some never move, no reason to follow them */
     if ((rf_has(r_info[kill->r_idx].flags, RF_NEVER_MOVE)) ||
@@ -786,11 +767,11 @@ static int borg_new_kill(unsigned int r_idx, int y, int x)
     borg_grids[kill->pos.y][kill->pos.x].kill = n;
 
     /* Timestamp */
-    kill->when = borg_t;
+    kill->when = borg.time.now;
 
     /* Mark the Morgoth time stamp if needed */
-    if (kill->r_idx == borg_morgoth_id)
-        borg_t_morgoth = borg_t;
+    if (kill->r_idx == borg.mon.morgoth)
+        borg.time.morgoth = borg.time.now;
 
     /* Update the monster */
     borg_update_kill_new(n);
@@ -812,7 +793,7 @@ static int borg_new_kill(unsigned int r_idx, int y, int x)
      * Regional Fear.  If it wasn't, then the borg will create new Regional Fear
      * next time the unseen monster attacks.  There is no harm done by clearing
      * these. At most, he may end up resting in an area for 1 turn */
-    if (borg_t < borg.need_see_invis + 5) {
+    if (borg_timer(borg.need_see_invis) > 45) {
         int y0, x0, y1, x1, y2, x2;
 
         y0 = (borg.c.y / 11);
@@ -953,11 +934,11 @@ bool observe_kill_diff(int y, int x, uint8_t a, wchar_t c)
     kill = &borg_kills[i];
 
     /* Timestamp */
-    kill->when = borg_t;
+    kill->when = borg.time.now;
 
     /* Mark the Morgoth time stamp if needed */
-    if (kill->r_idx == borg_morgoth_id)
-        borg_t_morgoth = borg_t;
+    if (kill->r_idx == borg.mon.morgoth)
+        borg.time.morgoth = borg.time.now;
 
     /* Done */
     return true;
@@ -1096,11 +1077,11 @@ bool observe_kill_move(int y, int x, int d, uint8_t a, wchar_t c, bool flag)
         }
 
         /* Note when last seen */
-        kill->when = borg_t;
+        kill->when = borg.time.now;
 
         /* Mark the Morgoth time stamp if needed */
-        if (kill->r_idx == borg_morgoth_id)
-            borg_t_morgoth = borg_t;
+        if (kill->r_idx == borg.mon.morgoth)
+            borg.time.morgoth = borg.time.now;
 
         /* Monster flickered */
         if (flicker) {
@@ -1315,8 +1296,8 @@ int borg_locate_kill(char *who, struct loc c, int r)
          */
         /* detect invis spell not working right, for now just shift panel
          * and cast a light beam if in a hallway and we have see_inv*/
-        if (borg.need_see_invis < (borg_t)) {
-            borg.need_see_invis = (borg_t);
+        if (borg_timer(borg.need_see_invis) > 50) {
+            borg.need_see_invis = (borg.time.now);
         }
 
         /* Ignore */
@@ -1429,11 +1410,11 @@ int borg_locate_kill(char *who, struct loc c, int r)
         kill = &borg_kills[b_i];
 
         /* Timestamp */
-        kill->when = borg_t;
+        kill->when = borg.time.now;
 
         /* Mark the Morgoth time stamp if needed */
-        if (kill->r_idx == borg_morgoth_id)
-            borg_t_morgoth = borg_t;
+        if (kill->r_idx == borg.mon.morgoth)
+            borg.time.morgoth = borg.time.now;
 
         /* Known identity */
         if (!r)
@@ -1656,9 +1637,9 @@ void borg_count_death(int i)
         if (borg_race_death[kill->r_idx] < SHRT_MAX)
             borg_race_death[kill->r_idx]++;
 
-        /* if it was a unique then remove the unique_on_level flag */
+        /* if it was a unique then remove the borg.mon.unique flag */
         if (rf_has(r_info[kill->r_idx].flags, RF_UNIQUE))
-            unique_on_level = 0;
+            borg.mon.unique = 0;
     }
 }
 
@@ -1699,7 +1680,7 @@ bool borg_flow_kill(bool viewable, int nearness)
         return false;
 
     /* Not if sitting in a sea of runes */
-    if (borg_morgoth_position)
+    if (borg.morgoth_position)
         return false;
 
     /* Nothing found */
@@ -1778,7 +1759,7 @@ bool borg_flow_kill(bool viewable, int nearness)
             continue;
 
         /* Avoid flowing to a fight if a scary guy is on the level */
-        if (scaryguy_on_level)
+        if (borg.mon.scary)
             continue;
 
         /* Avoid multiplying monsters when low level */
@@ -1812,9 +1793,9 @@ bool borg_flow_kill(bool viewable, int nearness)
         /* Skip "deadly" monsters unless uniques*/
         if (borg.trait[BI_CLEVEL] > 25
             && (!rf_has(r_info[kill->r_idx].flags, RF_UNIQUE))
-            && p > avoidance / 2)
+            && p > borg.avoidance / 2)
             continue;
-        if (borg.trait[BI_CLEVEL] <= 15 && p > avoidance / 3)
+        if (borg.trait[BI_CLEVEL] <= 15 && p > borg.avoidance / 3)
             continue;
 
         /* Skip ones that make me wander too far */
@@ -1980,7 +1961,7 @@ bool borg_flow_kill_aim(bool viewable)
 
     /* Sometimes we loop on this if we back  up to a point where */
     /* the monster is out of site */
-    if (borg.time_this_panel > 500)
+    if (borg.antibounce_count > 500)
         return false;
 
     /* Not if Weak from hunger or no food */
@@ -2167,14 +2148,14 @@ bool borg_flow_kill_corridor(void)
 
     borg_kill *kill;
 
-    borg_digging = false;
+    borg.status.digging = false;
 
     /* Efficiency -- Nothing to kill */
     if (!borg_kills_cnt)
         return false;
 
     /* Only do this to summoners when they are close*/
-    if (borg_kills_summoner == -1)
+    if (borg.near.summoner_idx == -1)
         return false;
 
     /* Hungry,starving */
@@ -2182,7 +2163,7 @@ bool borg_flow_kill_corridor(void)
         return false;
 
     /* Sometimes we loop on this */
-    if (borg.time_this_panel > 500)
+    if (borg.antibounce_count > 500)
         return false;
 
     /* Do not dig when confused */
@@ -2194,13 +2175,13 @@ bool borg_flow_kill_corridor(void)
         return false;
 
     /* Not if sitting in a sea of runes */
-    if (borg_morgoth_position)
+    if (borg.morgoth_position)
         return false;
-    if (borg_as_position)
+    if (borg.status.anti_summon)
         return false;
 
     /* get the summoning monster */
-    kill = &borg_kills[borg_kills_summoner];
+    kill = &borg_kills[borg.near.summoner_idx];
 
     /* Summoner must be mobile */
     if (rf_has(r_info[kill->r_idx].flags, RF_NEVER_MOVE))
@@ -2237,14 +2218,14 @@ bool borg_flow_kill_corridor(void)
             && borg_detect_wall[q_y + 1][q_x + 0] == true
             && borg_detect_wall[q_y + 1][q_x + 1] == true) {
             borg_flow_clear();
-            borg_digging = true;
+            borg.status.digging = true;
             borg_flow_enqueue_grid(kill->pos.y, kill->pos.x);
             borg_flow_spread(10, true, false, false, -1, false);
             if (!borg_flow_commit("Monster Path", GOAL_KILL))
                 return false;
         } else {
             borg_flow_clear();
-            borg_digging = true;
+            borg.status.digging = true;
             borg_flow_enqueue_grid(kill->pos.y, kill->pos.x);
             borg_flow_spread(10, true, true, false, -1, false);
             if (!borg_flow_commit("Monster Path", GOAL_KILL))
@@ -2483,7 +2464,7 @@ bool borg_flow_kill_corridor(void)
         borg_flow_clear();
 
         /* Enqueue the grid where I will hide */
-        borg_digging = true;
+        borg.status.digging = true;
         borg_flow_enqueue_grid(borg.c.y + b_y + ny[7], borg.c.x + b_x + nx[7]);
 
         /* Spread the flow */
@@ -2505,7 +2486,7 @@ bool borg_flow_kill_corridor(void)
         borg_flow_clear();
 
         /* Enqueue the grid where I will hide */
-        borg_digging = true;
+        borg.status.digging = true;
         borg_flow_enqueue_grid(
             borg.c.y + b_y + sy[17], borg.c.x + b_x + sx[17]);
 
@@ -2528,12 +2509,12 @@ bool borg_flow_kill_corridor(void)
         borg_flow_clear();
 
         /* Enqueue the grid where I will hide */
-        borg_digging = true;
+        borg.status.digging = true;
         borg_flow_enqueue_grid(
             borg.c.y + b_y + ey[13], borg.c.x + b_x + ex[13]);
 
         /* Spread the flow */
-        borg_digging = true;
+        borg.status.digging = true;
         borg_flow_spread(5, true, false, true, -1, false);
 
         /* Attempt to Commit the flow */
@@ -2551,7 +2532,7 @@ bool borg_flow_kill_corridor(void)
         borg_flow_clear();
 
         /* Enqueue the grid where I will hide */
-        borg_digging = true;
+        borg.status.digging = true;
         borg_flow_enqueue_grid(
             borg.c.y + b_y + wy[11], borg.c.x + b_x + wx[11]);
 
@@ -2593,7 +2574,8 @@ bool borg_flow_kill_direct(bool twitchy)
         return false;
 
     /* Only when sitting for too long or twitchy */
-    if (!twitchy && borg_t - borg_began < 3000 && borg.times_twitch < 5)
+    if (!twitchy && borg_timer(borg.time.level) < 3000
+        && borg.times_twitch < 5)
         return false;
 
     /* Do not dig when confused */
@@ -2692,32 +2674,13 @@ void borg_near_monster_type(int dist)
 
 	int x9, y9, ax, ay, d;
 	int i;
-	int breeder_count = 0;
+	int breeder_count = borg.mon.breeders;
 
 	/* reset the borg flags */
-	borg_fighting_summoner = false;
-	borg_fighting_unique = 0;
-	borg_fighting_evil_unique = false;
-	borg_kills_summoner = -1;
-
-    /* count breeders if low enough level */
-    if (borg.trait[BI_CLEVEL] <= 20) {
-        for (i = 1; i < borg_kills_nxt; i++) {
-            kill = &borg_kills[i];
-
-            /* Skip dead monsters */
-            if (!kill->r_idx)
-                continue;
-
-            /* "player ghosts" */
-            if (kill->r_idx >= z_info->r_max - 1)
-                continue;
-
-            /* Count breeders */
-            if (rf_has(r_info[kill->r_idx].flags, RF_MULTIPLY))
-                breeder_count++;
-        }
-    }
+	borg.near.summoner = false;
+	borg.near.unique = 0;
+	borg.near.evil_unique = false;
+	borg.near.summoner_idx = -1;
 
 	/* Scan the monsters */
 	for (i = 1; i < borg_kills_nxt; i++) {
@@ -2742,20 +2705,20 @@ void borg_near_monster_type(int dist)
 		 /* !FIX this should be rewritten to not use specific names but */
 		 /* instead track certain attacks that are particularly scary */
 		if (borg.trait[BI_CLEVEL] <= 5 && (prefix_i(r_ptr->name, "squint")))
-			scaryguy_on_level = true;
+			borg.mon.scary = true;
 
 		/* Mage and priest are extra fearful */
 		if (borg.trait[BI_CLEVEL] <= 6
 			&& (borg.trait[BI_CLASS] == CLASS_MAGE
 				|| borg.trait[BI_CLASS] == CLASS_PRIEST)
 			&& (prefix_i(r_ptr->name, "squint")))
-			scaryguy_on_level = true;
+			borg.mon.scary = true;
 
 		/* run from certain dungeon scaries */
 		if (borg.trait[BI_CLEVEL] <= 5
 			&& (prefix_i(r_ptr->name, "Grip") || prefix_i(r_ptr->name, "Fang")
 				|| prefix_i(r_ptr->name, "small kobold")))
-			scaryguy_on_level = true;
+			borg.mon.scary = true;
 
 		/* run from certain scaries */
 		if (borg.trait[BI_CLEVEL] <= 8
@@ -2770,7 +2733,7 @@ void borg_near_monster_type(int dist)
 				|| prefix_i(r_ptr->name, "filthy street urchin")
 				|| prefix_i(r_ptr->name, "battle-scarred veteran")
 				|| prefix_i(r_ptr->name, "mean-looking mercenary")))
-			scaryguy_on_level = true;
+			borg.mon.scary = true;
 
 		if (borg.trait[BI_CLEVEL] <= 15
 			&& (prefix_i(r_ptr->name, "Bullroarer")
@@ -2778,7 +2741,7 @@ void borg_near_monster_type(int dist)
 					|| prefix_i(r_ptr->name, "white worm mass")
 					|| prefix_i(r_ptr->name, "green worm mass"))
 					&& breeder_count >= borg.trait[BI_CLEVEL])))
-			scaryguy_on_level = true;
+			borg.mon.scary = true;
 
 		if (borg.trait[BI_CLEVEL] <= 20
 			&& (prefix_i(r_ptr->name, "cave spider")
@@ -2787,7 +2750,7 @@ void borg_near_monster_type(int dist)
 				|| prefix_i(r_ptr->name, "radiation eye")
 				|| (prefix_i(r_ptr->name, "yellow worm mass")
 					&& breeder_count >= borg.trait[BI_CLEVEL])))
-			scaryguy_on_level = true;
+			borg.mon.scary = true;
 
 		if (borg.trait[BI_CLEVEL] < 45
 			&& (prefix_i(r_ptr->name, "gravity")
@@ -2795,35 +2758,35 @@ void borg_near_monster_type(int dist)
 				|| prefix_i(r_ptr->base->name, "ancient dragon")
 				|| prefix_i(r_ptr->name, "Beorn")
 				|| prefix_i(r_ptr->name, "dread") /* Appear in Groups */))
-			scaryguy_on_level = true;
+			borg.mon.scary = true;
 
 		/* Nether breath is bad */
 		if (!borg.trait[BI_SRNTHR]
 			&& (prefix_i(r_ptr->name, "Oss") /* Ossë, Herald of Ulmo */
 				|| prefix_i(r_ptr->name, "dracolich")
 				|| prefix_i(r_ptr->name, "dracolisk")))
-			scaryguy_on_level = true;
+			borg.mon.scary = true;
 
 		/* Blindness is really bad */
 		if ((!borg.trait[BI_SRBLIND])
 			&& ((prefix_i(r_ptr->name, "light hound") && !borg.trait[BI_SRLITE])
 				|| (prefix_i(r_ptr->name, "dark hound")
 					&& !borg.trait[BI_SRDARK])))
-			scaryguy_on_level = true;
+			borg.mon.scary = true;
 
 		/* Chaos and Confusion are really bad */
 		if ((!borg.trait[BI_SRKAOS] && !borg.trait[BI_SRCONF])
 			&& (my_stristr(r_ptr->name, "chaos")))
-			scaryguy_on_level = true;
+			borg.mon.scary = true;
 		if (!borg.trait[BI_SRCONF]
 			&& (prefix_i(r_ptr->name, "pukelman")
 				|| prefix_i(r_ptr->name, "night mare")))
-			scaryguy_on_level = true;
+			borg.mon.scary = true;
 
 		/* Poison is really Bad */
 		if (!borg.trait[BI_RPOIS] && /* Note the RPois not SRPois */
 			(prefix_i(r_ptr->name, "drolem")))
-			scaryguy_on_level = true;
+			borg.mon.scary = true;
 
 		/* Now do distance considerations */
 		x9 = kill->pos.x;
@@ -2847,19 +2810,19 @@ void borg_near_monster_type(int dist)
 
 		{
 			/* Set a flag for use with certain types of spells */
-			unique_on_level = kill->r_idx;
+			borg.mon.unique = kill->r_idx;
 
 			/* return 1 if not Morgy, +10 if it is Morgy or Sauron */
 			if (rf_has(r_ptr->flags, RF_QUESTOR)) {
-				borg_fighting_unique += 10;
+				borg.near.unique += 10;
 			}
 
 			/* regular unique */
-			borg_fighting_unique++;
+			borg.near.unique++;
 
 			/* Note that fighting a Questor would result in a 11 value */
 			if (rf_has(r_ptr->flags, RF_EVIL))
-				borg_fighting_evil_unique = true;
+				borg.near.evil_unique = true;
 		}
 
 		/*** Scan for Summoners ***/
@@ -2880,13 +2843,13 @@ void borg_near_monster_type(int dist)
 			|| (rsf_has(r_ptr->spell_flags, RSF_S_WRAITH))
 			|| (rsf_has(r_ptr->spell_flags, RSF_S_UNIQUE))) {
 			/* mark the flag */
-			borg_fighting_summoner = true;
+			borg.near.summoner = true;
 
 			/* recheck the distance to see if close
 			 * and mark the index for as-corridor
 			 */
 			if (d < 8) {
-				borg_kills_summoner = i;
+				borg.near.summoner_idx = i;
 			}
 		}
 	}
@@ -2963,7 +2926,7 @@ bool borg_shoot_scoot_safe(int emergency, int turns, int b_p)
     }
 
     /* Not if I am in a safe spot for killing special monsters */
-    if (borg_morgoth_position || borg_as_position)
+    if (borg.morgoth_position || borg.status.anti_summon)
         return false;
 
     /* scan the adjacent grids for an awake monster */
@@ -3009,7 +2972,7 @@ bool borg_shoot_scoot_safe(int emergency, int turns, int b_p)
              */
             else if ((borg_danger_one_kill(
                           kill->pos.y, kill->pos.x, 1, i, true, false)
-                         > avoidance * 3 / 10)
+                         > borg.avoidance * 3 / 10)
                      || ((r_ptr->friends
                              || r_ptr->friends_base) /* monster has friends*/
                          && kill->level
@@ -3157,11 +3120,11 @@ static void borg_init_monster_names(void)
 
         /* a few special uniques to look out for */
         if (streq(r_ptr->name, "Morgoth, Lord of Darkness"))
-            borg_morgoth_id = r_ptr->ridx;
+            borg.mon.morgoth = r_ptr->ridx;
         if (streq(r_ptr->name, "Sauron, the Sorcerer"))
-            borg_sauron_id = r_ptr->ridx;
+            borg.mon.sauron = r_ptr->ridx;
         if (streq(r_ptr->name, "The Tarrasque"))
-            borg_tarrasque_id = r_ptr->ridx;
+            borg.mon.tarrasque = r_ptr->ridx;
 
         size++;
     }

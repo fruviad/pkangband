@@ -174,7 +174,7 @@ bool borg_init_txt_file(void)
     bool warning = false;
 
 
-    if (borg_active)
+    if (borg.status.active)
         borg_free_txt_file();
 
     borg_trait_init();
@@ -343,26 +343,26 @@ void borg_reset_ignore(void)
     if (borg_cfg[BORG_RESTORE_IGNORE_SETTINGS]) {
         /* Reset ignore bits */
         for (i = 0; i < z_info->k_max; i++)
-            k_info[i].ignore = borg_init_save.kinfo_ignore[i];
+            k_info[i].ignore = borg.init_save.kinfo_ignore[i];
 
         /* Clear the ignore bytes */
         for (i = ITYPE_NONE; i < ITYPE_MAX; i++)
-            ignore_level[i] = borg_init_save.ignore_level[i];
+            ignore_level[i] = borg.init_save.ignore_level[i];
 
         /* Clear ego ignore */
         for (i = 0; i < z_info->e_max; i++)
             for (j = ITYPE_NONE; j < ITYPE_MAX; j++)
-                ego_ignore_types[i][j] = borg_init_save.ego_ignore_types[i][j];
+                ego_ignore_types[i][j] = borg.init_save.ego_ignore_types[i][j];
     }
 
     for (i = 0; i < z_info->e_max; i++)
-        mem_free(borg_init_save.ego_ignore_types[i]);
-    mem_free(borg_init_save.ego_ignore_types);
+        mem_free(borg.init_save.ego_ignore_types[i]);
+    mem_free(borg.init_save.ego_ignore_types);
 
-    borg_init_save.ego_ignore_types = NULL;
+    borg.init_save.ego_ignore_types = NULL;
 
-    mem_free(borg_init_save.kinfo_ignore);
-    borg_init_save.kinfo_ignore = NULL;
+    mem_free(borg.init_save.kinfo_ignore);
+    borg.init_save.kinfo_ignore = NULL;
 }
 
 
@@ -371,24 +371,24 @@ static void borg_init_ignore(void)
     int i, j;
 
     /* allocate the memory */
-    borg_init_save.kinfo_ignore = mem_alloc(sizeof(uint8_t) * z_info->k_max);
+    borg.init_save.kinfo_ignore = mem_alloc(sizeof(uint8_t) * z_info->k_max);
 
-    borg_init_save.ego_ignore_types = mem_zalloc(z_info->e_max * sizeof(bool*));
+    borg.init_save.ego_ignore_types = mem_zalloc(z_info->e_max * sizeof(bool*));
     for (i = 0; i < z_info->e_max; i++)
-        borg_init_save.ego_ignore_types[i] = mem_zalloc(ITYPE_MAX * sizeof(bool));
+        borg.init_save.ego_ignore_types[i] = mem_zalloc(ITYPE_MAX * sizeof(bool));
 
     /* Reset ignore bits */
     for (i = 0; i < z_info->k_max; i++)
-        borg_init_save.kinfo_ignore[i] = k_info[i].ignore;
+        borg.init_save.kinfo_ignore[i] = k_info[i].ignore;
 
     /* Clear the ignore bytes */
     for (i = ITYPE_NONE; i < ITYPE_MAX; i++)
-        borg_init_save.ignore_level[i] = ignore_level[i];
+        borg.init_save.ignore_level[i] = ignore_level[i];
 
     /* Clear ego ignore */
     for (i = 0; i < z_info->e_max; i++)
         for (j = ITYPE_NONE; j < ITYPE_MAX; j++)
-            borg_init_save.ego_ignore_types[i][j] = ego_ignore_types[i][j];
+            borg.init_save.ego_ignore_types[i][j] = ego_ignore_types[i][j];
 
     /* clear the saved flags */
     ignore_birth_init();
@@ -400,7 +400,7 @@ static void borg_init_ignore(void)
 void borg_reinit_options(void)
 {
     /* Save current key mode */
-    borg_init_save.key_mode = OPT(player, rogue_like_commands) ? KEYMAP_MODE_ROGUE
+    borg.init_save.key_mode = OPT(player, rogue_like_commands) ? KEYMAP_MODE_ROGUE
                                                 : KEYMAP_MODE_ORIG;
 
     borg_init_ignore();
@@ -438,6 +438,46 @@ void borg_reinit_options(void)
 
     /* Efficiency */
     player->opts.hitpoint_warn = 0;
+}
+
+void borg_reset_settings(void)
+{
+    int i, j;
+
+    /* Restore user key mode */
+    if (borg.init_save.key_mode == KEYMAP_MODE_ROGUE) {
+        option_set("rogue_like_commands", true);
+    }
+    else if (borg.init_save.key_mode == KEYMAP_MODE_ORIG) {
+        option_set("rogue_like_commands", false);
+    }
+
+    /* reset the "ignore" flags */
+    if (borg_cfg[BORG_RESTORE_IGNORE_SETTINGS]) {
+        /* Reset ignore bits */
+        for (i = 0; i < z_info->k_max; i++)
+            k_info[i].ignore = borg.init_save.kinfo_ignore[i];
+
+        /* Clear the ignore bytes */
+        for (i = ITYPE_NONE; i < ITYPE_MAX; i++)
+            ignore_level[i] = borg.init_save.ignore_level[i];
+
+        /* Clear ego ignore */
+        for (i = 0; i < z_info->e_max; i++)
+            for (j = ITYPE_NONE; j < ITYPE_MAX; j++)
+                ego_ignore_types[i][j] = borg.init_save.ego_ignore_types[i][j];
+    }
+
+    for (i = 0; i < z_info->e_max; i++)
+        mem_free(borg.init_save.ego_ignore_types[i]);
+    mem_free(borg.init_save.ego_ignore_types);
+
+    borg.init_save.ego_ignore_types = NULL;
+
+    mem_free(borg.init_save.kinfo_ignore);
+    borg.init_save.kinfo_ignore = NULL;
+
+    borg_free_detection();
 }
 
 /*
@@ -489,6 +529,9 @@ void borg_init(void)
 
     borg.player = player; /* HACK work around msvc issue */
 
+    /* old depth starts at deepest level */
+    borg.status.old_depth = 128;
+
     /*** Initialize borg.ini options ***/
 
     /* Message */
@@ -524,11 +567,11 @@ void borg_init(void)
     /*** Cheat / Panic ***/
 
     /* more cheating */
-    borg_cheat_death = false;
+    borg.status.cheat_death = false;
 
     /* set the continuous play mode if the game cheat death is on */
     if (OPT(player, cheat_live))
-        borg_cheat_death = true;
+        borg.status.cheat_death = true;
 
     /*** Initialize ***/
 
@@ -570,7 +613,7 @@ void borg_init(void)
     borg_note("Initializing the Borg... done.");
 
     /* Reset the clock */
-    borg_t = 10;
+    borg.time.now = 10;
 
     /* note: I would check if player_id2class returns null but it */
     /* never does, even on a bad class */

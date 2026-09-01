@@ -25,6 +25,7 @@
 
 #ifdef ALLOW_BORG
 
+#include "borg.h"
 #include "borg-flow.h"
 
 /*
@@ -39,7 +40,7 @@ struct borg_take {
     bool                extra; /* Unused */
     bool                orbed; /* Orb of Draining cast on it */
     uint8_t             x, y; /* Location */
-    int16_t             when; /* When last seen */
+    borg_time           when; /* When last seen */
     int                 value; /* Estimated value of item */
     int                 tval; /* Known tval */
 };
