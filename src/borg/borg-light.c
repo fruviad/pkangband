@@ -115,7 +115,8 @@ bool borg_check_light_only(void)
         return false;
 
     /** Use wizard light sometimes **/
-    if (!borg.time.wizard_light || (borg_timer(borg.time.wizard_light) >= 1000)) {
+    if (!borg.time.wizard_light
+        || (borg_timer(borg.time.wizard_light) >= 1000)) {
         if (borg_activate_item(act_clairvoyance)
             || borg_activate_item(act_enlightenment)
             || borg_spell_fail(FUME_OF_MORDOR, 40)
@@ -493,7 +494,8 @@ bool borg_check_light(void)
 
     /* Find walls */
     if (do_wall
-        && (!borg.time.detect_walls || (borg_timer(borg.time.detect_walls) >= 15))
+        && (!borg.time.detect_walls
+            || (borg_timer(borg.time.detect_walls) >= 15))
         /* Never in town */
         && borg.trait[BI_CDEPTH]) {
         /* Check for walls */
@@ -525,7 +527,8 @@ bool borg_check_light(void)
 
     /* Find objects */
     if (do_obj
-        && (!borg.time.detect_obj || (borg_timer(borg.time.detect_obj) >= 20))) {
+        && (!borg.time.detect_obj
+            || (borg_timer(borg.time.detect_obj) >= 20))) {
         /* Check for objects */
         if (borg_activate_item(act_detect_objects)
             || borg_spell_fail(OBJECT_DETECTION, 40)) {

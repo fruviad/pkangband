@@ -60,7 +60,8 @@ bool borg_munchkin_mage(void)
         return false;
 
     /* Not if too dangerous */
-    if ((borg_danger(borg.c.y, borg.c.x, 1, true, true) > borg.avoidance * 7 / 10)
+    if ((borg_danger(borg.c.y, borg.c.x, 1, true, true)
+            > borg.avoidance * 7 / 10)
         || borg.trait[BI_CURHP] < borg.trait[BI_MAXHP] / 3)
         return false;
     if (borg.trait[BI_ISCONFUSED])
@@ -211,7 +212,8 @@ bool borg_munchkin_melee(void)
         return false;
 
     /* Not if too dangerous */
-    if ((borg_danger(borg.c.y, borg.c.x, 1, true, true) > borg.avoidance * 7 / 10)
+    if ((borg_danger(borg.c.y, borg.c.x, 1, true, true)
+            > borg.avoidance * 7 / 10)
         || borg.trait[BI_CURHP] < borg.trait[BI_MAXHP] / 3)
         return false;
     if (borg.trait[BI_ISCONFUSED])

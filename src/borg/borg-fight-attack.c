@@ -2386,8 +2386,8 @@ static int borg_attack_aux_object(void)
  *
  * Take into account the failure rate of spells/objects/etc.  XXX XXX XXX
  */
-int borg_attack_aux_spell_bolt(
-    const enum borg_spells spell, int rad, int dam, int typ, int max_range, bool is_arc)
+int borg_attack_aux_spell_bolt(const enum borg_spells spell, int rad, int dam,
+    int typ, int max_range, bool is_arc)
 {
     int b_n;
     int penalty = 0;

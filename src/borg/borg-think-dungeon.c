@@ -2159,8 +2159,8 @@ bool borg_think_dungeon(void)
         bool done = false;
 
         /* Note */
-        borg_note(format("# Boosting bravery (2) from %d to %d!", borg.avoidance,
-            borg.trait[BI_MAXHP] * 4));
+        borg_note(format("# Boosting bravery (2) from %d to %d!",
+            borg.avoidance, borg.trait[BI_MAXHP] * 4));
 
         /* Ignore some danger */
         borg.avoidance = (borg.trait[BI_MAXHP] * 4);
@@ -2191,8 +2191,8 @@ bool borg_think_dungeon(void)
         bool done = false;
 
         /* Note */
-        borg_note(
-            format("# Boosting bravery (3) from %d to %d!", borg.avoidance, 30000));
+        borg_note(format(
+            "# Boosting bravery (3) from %d to %d!", borg.avoidance, 30000));
 
         /* Ignore some danger */
         borg.avoidance = 30000;
