@@ -1094,6 +1094,12 @@ static bool borg_one_step_wearing_best(int skip)
             if (skipping) {
                 item_num++;
                 skipping--;
+
+                /* skipping the last item means we need to make room */
+                /* before continuing */
+                if (item_num >= z_info->equip_slots_max)
+                    return false;
+
                 continue;
             }
 
