@@ -2392,17 +2392,17 @@ void borg_update(void)
             /* Morgoth has not been seen in a long time */
             if (borg.mon.unique == borg.mon.morgoth
                 && (borg_timer(borg.time.morgoth) > 500)) {
-                borg_note(format("# Morgoth has not been seen in %d turns.  "
+                borg_note(format("# Morgoth has not been seen in %ld turns.  "
                                  "Going to hunt him.",
-                    borg_timer(borg.time.morgoth)));
+                    (long int)borg_timer(borg.time.morgoth)));
                 borg.near.morgoth = false;
             }
 
             /* Morgoth has not been seen in a very long time */
             if (borg_timer(borg.time.morgoth) > 2500) {
                 borg_note(
-                    format("# Morgoth has not been seen in %d turns.  No show.",
-                        borg_timer(borg.time.morgoth)));
+                    format("# Morgoth has not been seen in %ld turns.  No show.",
+                        (long int)borg_timer(borg.time.morgoth)));
                 borg.mon.unique = 0;
             }
         }
