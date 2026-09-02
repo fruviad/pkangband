@@ -1183,7 +1183,7 @@ static bool borg_check_bounciness(void)
     return false;
 }
 
-bool borg_check_breeders(void)
+static bool borg_check_breeders(void)
 {
     /* Close doors on breeder levels */
     if (borg.mon.breeders >= 3) {

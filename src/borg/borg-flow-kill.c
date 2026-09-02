@@ -781,9 +781,9 @@ static int borg_new_kill(unsigned int r_idx, int y, int x)
 
     /* Note (r_info[kill->r_idx].name)*/
     borg_note(format(
-        "# Creating a monster '%s' at (%d,%d), HP: %d, Time: %d, Index: %d",
+        "# Creating a monster '%s' at (%d,%d), HP: %d, Index: %d",
         borg_race_name(kill->r_idx), kill->pos.y, kill->pos.x, kill->power,
-        kill->when, kill->r_idx));
+        kill->r_idx));
 
     /* Recalculate danger */
     borg_danger_wipe = true;

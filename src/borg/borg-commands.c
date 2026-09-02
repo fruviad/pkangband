@@ -1086,10 +1086,10 @@ static void borg_cmd_fear(void)
  */
 static void borg_cmd_time(void)
 {
-    msg("time: (%d) ", borg.time.now);
-    msg("; from town (%d)", borg_timer(borg.time.town));
-    msg("; bounciness (%d)", borg.antibounce_count);
-    msg("; when inviso (%d)", borg.need_see_invis);
+    msg("time: (%ld) ", (long int)borg.time.now);
+    msg("; from town (%ld)", (long int)borg_timer(borg.time.town));
+    msg("; bounciness (%ld)", (long int)borg.antibounce_count);
+    msg("; when inviso (%ld)", (long int)borg.need_see_invis);
 }
 
 /*
