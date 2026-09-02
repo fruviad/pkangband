@@ -72,7 +72,7 @@ static struct keypress generate_keypress(int flush_first);
  * Special "inkey_hack" hook.  This is used in ui-input.c and other places
  * to allow keys to come from someplace other than the keyboard
  */
-extern struct keypress(*inkey_hack)(int flush_first);
+struct keypress(*inkey_hack)(int flush_first);
 
 /*
  * **START HERE FOR BORG PROCESSING**
