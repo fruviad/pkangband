@@ -25,6 +25,8 @@
 
 #ifdef ALLOW_BORG
 
+#include "../ui-input.h"
+
 extern int16_t  borg_msg_len;
 extern int16_t  borg_msg_siz;
 extern char    *borg_msg_buf;
