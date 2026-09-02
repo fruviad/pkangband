@@ -211,7 +211,7 @@ static bool check_for_deactivate_or_death(struct keypress* key)
 /*
  * Handle manual abort
  */
-bool user_abort(void)
+static bool user_abort(void)
 {
     ui_event ch_evt;
 

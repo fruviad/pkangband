@@ -139,7 +139,7 @@ static char borg_index_to_label(int i)
  * Write a file with the current dungeon info (Borg)
  * and his equipment, inventory and home (Player)
  * and his swap armor, weapon (Borg)
- * NOTE: this uses internal game data.  This is okay since we are just dumping 
+ * NOTE: this uses internal game data.  This is okay since we are just dumping
  * the information rather than using it.
  */
 void borg_write_map(bool ask)
@@ -1275,8 +1275,8 @@ void borg_display_status(void)
                 else
                     attr = COLOUR_SLATE;
                 Term_putstr(1, 20, -1, attr,
-                    format("Morgoth on Level.  Last seen:%d       ",
-                        borg_timer(borg.time.morgoth)));
+                    format("Morgoth on Level.  Last seen:%ld       ",
+                        (long int)borg_timer(borg.time.morgoth)));
 
                 if (borg.morgoth_position)
                     attr = COLOUR_BLUE;

@@ -34,13 +34,6 @@
 #include "borg-update.h"
 
 /*
- * Location of the "Lv Mana Fail" prompt
- * !FIX !TODO use consts for other magic numbers and review file
- */
-#define ROW_SPELL 1
-#define COL_SPELL 20 + 35
-
-/*
  * Current shop index
  */
 int16_t shop_num = -1;
