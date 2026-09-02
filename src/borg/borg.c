@@ -69,12 +69,6 @@ int w_y = 0;                 /* Current panel offset (Y) */
 static struct keypress generate_keypress(int flush_first);
 
 /*
- * Special "inkey_hack" hook.  This is used in ui-input.c and other places
- * to allow keys to come from someplace other than the keyboard
- */
-struct keypress(*inkey_hack)(int flush_first);
-
-/*
  * **START HERE FOR BORG PROCESSING**
  *
  * This routine is what captures control from Angband and feeds back keystrokes
